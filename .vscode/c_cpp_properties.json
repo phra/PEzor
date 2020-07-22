@@ -1,0 +1,20 @@
+{
+    "configurations": [
+        {
+            "name": "Linux",
+            "includePath": [
+                "${workspaceFolder}/**",
+                "/usr/x86_64-w64-mingw32/include/**",
+                "/usr/lib/llvm-8/lib/clang/8.0.1/include/**",
+                "/usr/share/mingw-w64/include/**",
+                "${workspaceFolder}/inline_syscall/include/**"
+            ],
+            "defines": [],
+            "compilerPath": "~/git/wclang/_prefix_/bin/",
+            "cStandard": "c11",
+            "cppStandard": "c++17",
+            "intelliSenseMode": "clang-x64"
+        }
+    ],
+    "version": 4
+}
