@@ -5,9 +5,14 @@ INSTALL_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 
 cd $INSTALL_DIR &&
 
-apt update &&
-apt install -y wget unzip build-essential cmake autotools-dev git clang golang mingw-w64 libcapstone-dev libssl-dev cowsay &&
-
+if [[ "$OSTYPE" == "linux"* ]]; then
+    apt update && \
+    apt install -y wget unzip build-essential cmake autotools-dev git clang golang mingw-w64 libcapstone-dev libssl-dev cowsay
+elif [[ "$OSTYPE" == "darwin"* ]]; then
+    brew install cmake wget git mingw-w64 capstone go
+else
+    echo "Warning: Unknown platform"
+fi
 mkdir -p deps &&
 cd deps &&
 
