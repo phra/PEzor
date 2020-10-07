@@ -28,6 +28,7 @@ UNHOOK=false
 ANTIDEBUG=false
 TEXT=false
 SELF=false
+DLL=false
 CC=x86_64-w64-mingw32-clang
 CXX=x86_64-w64-mingw32-clang++
 
@@ -51,6 +52,7 @@ OPTIONS
   -text                     Store shellcode in .text section instead of .data
   -self                     Execute the shellcode in the same thread [requires RX shellcode, not compatible with -sgn]
   -sleep=N                  Sleeps for N seconds before unpacking the shellcode
+  -dll			    Convert to .dll library
   [donut args...]           After the executable to pack, you can pass additional Donut args, such as -z 2
 
 EXAMPLES
@@ -79,6 +81,7 @@ OPTIONS
   -text                     Store shellcode in .text section instead of .data
   -self                     Execute the shellcode in the same thread [requires RX shellcode, not compatible with -sgn]
   -sleep=N                  Sleeps for N seconds before unpacking the shellcode
+  -dll			    Convert to .dll library
 
 EXAMPLES
   # 64-bit (self-inject)
@@ -154,6 +157,10 @@ do
         -sgn)
             echo '[?] Final shellcode will be encoded with sgn'
             SGN=true
+            ;;
+        -dll)
+            DLL=true
+            echo "[?] Library DLL format"
             ;;
         *)
             echo "[?] Processing $arg"
@@ -235,11 +242,19 @@ elif [ $IS_SHELLCODE = false ] && [ $SGN = true ]; then
     echo 'unsigned int buf_size = sizeof(buf);' >> $TMP_DIR/shellcode.cpp || exit 1
 fi
 
-echo '[?] Building executable'
 
+if [ $DLL = true ]; then 
+  echo '[?] Building Windows Library'
+else
+  echo '[?] Building Windows executable'
+fi
+
+CDFLAGS="-O0 -Wl,-strip-all -emit-llvm -Wall -pedantic"
 CCFLAGS="-O3 -Wl,-strip-all -S -emit-llvm -Wall -pedantic"
 CPPFLAGS="-O3 -Wl,-strip-all -Wall -pedantic"
 CXXFLAGS="-std=c++17 -static"
+PEZOREADO="packed.exe"
+
 
 if [ $BITS -eq 32 ]; then
     CC=i686-w64-mingw32-clang
@@ -273,14 +288,22 @@ if [ $SELF = true ]; then
     CPPFLAGS="$CPPFLAGS -DSELFINJECT"
 fi
 
+if [ $DLL = true ]; then
+    CDFLAGS="--shared -O0 -Wl,--out-implib,-strip-all -emit-llvm -Wall -pedantic"
+    CCFLAGS="--shared -O3 -Wl,--out-implib,-strip-all -strip-all -S -emit-llvm -Wall -pedantic"
+    CPPFLAGS="--shared -O3 -Wl,--out-implib,-strip-all -pedantic"
+    CXXFLAGS="-std=c++17 -static"
+    PEZOREADO="packed.dll"
+fi
 if [ $UNHOOK = true ]; then
     $CC $CPPFLAGS -c $INSTALL_DIR/ApiSetMap.c -o $TMP_DIR/ApiSetMap.o &&
     $CC $CPPFLAGS -c $INSTALL_DIR/loader.c -o $TMP_DIR/loader.o &&
-    $CXX $CPPFLAGS $CXXFLAGS $INSTALL_DIR/*.cpp $TMP_DIR/{shellcode,sleep}.cpp $TMP_DIR/{ApiSetMap,loader}.o -o $CURRENT_DIR/${BLOB%%.exe}.packed.exe &&
-    strip $CURRENT_DIR/${BLOB%%.exe}.packed.exe || exit 1
+    $CXX $CPPFLAGS $CXXFLAGS $INSTALL_DIR/*.cpp $TMP_DIR/{shellcode,sleep}.cpp $TMP_DIR/{ApiSetMap,loader}.o -o $CURRENT_DIR/${BLOB%%.exe}.$PEZOREADO &&
+    strip $CURRENT_DIR/${BLOB%%.exe}.$PEZOREADO || exit 1
 else
-    $CXX $CPPFLAGS $CXXFLAGS $INSTALL_DIR/*.cpp $TMP_DIR/{shellcode,sleep}.cpp -o $CURRENT_DIR/${BLOB%%.exe}.packed.exe &&
-    strip $CURRENT_DIR/${BLOB%%.exe}.packed.exe || exit 1
+    $CXX $CPPFLAGS $CXXFLAGS $INSTALL_DIR/*.cpp $TMP_DIR/{shellcode,sleep}.cpp -o $CURRENT_DIR/${BLOB%%.exe}.$PEZOREADO &&
+    strip $CURRENT_DIR/${BLOB%%.exe}.$PEZOREADO || exit 1
 fi
 
-echo -n '[!] Done! Check '; file $CURRENT_DIR/${BLOB%%.exe}.packed.exe
+echo -n '[!] Done! Check '; file $CURRENT_DIR/${BLOB%%.exe}.$PEZOREADO
+
