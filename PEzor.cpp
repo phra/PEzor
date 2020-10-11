@@ -1,6 +1,10 @@
 #pragma clang diagnostic ignored "-Wnested-anon-types"
 #pragma clang diagnostic ignored "-Wgnu-anonymous-struct"
 
+#ifdef SHAREDOBJECT
+#include "ReflectiveDLLInjection/dll/src/ReflectiveLoader.h"
+#endif
+
 #include "PEzor.hpp"
 
 #define NT_FAIL(status) (status < 0)
@@ -9,6 +13,7 @@
 #define FLG_HEAP_VALIDATE_PARAMETERS 0x40
 #define NT_GLOBAL_FLAG_DEBUGGED (FLG_HEAP_ENABLE_TAIL_CHECK | FLG_HEAP_ENABLE_FREE_CHECK | FLG_HEAP_VALIDATE_PARAMETERS)
 
+#ifdef ANTIDEBUG
 inline void anti_debug(void) {
     DWORD errorValue = 1111;
     SetLastError(errorValue);
@@ -35,8 +40,9 @@ inline void anti_debug(void) {
         exit(STATUS_SUCCESS);
     }
 }
+#endif
 
-int main() {
+int _main(int argc, char** argv) {
     #ifdef _DEBUG_
         puts("PEzor starting!");
     #endif
@@ -69,3 +75,28 @@ int main() {
     #endif
     return 0;
 }
+
+#ifdef SHAREDOBJECT
+extern HINSTANCE hAppInstance;
+DLLEXPORT BOOL WINAPI DllMain(HINSTANCE hinstDLL, DWORD dwReason, LPVOID lpReserved ) {
+	switch (dwReason) {
+		case DLL_QUERY_HMODULE:
+			if (lpReserved != NULL)
+				*(HMODULE *)lpReserved = hAppInstance;
+			break;
+		case DLL_PROCESS_ATTACH:
+        case DLL_THREAD_ATTACH:
+            _main(0, NULL);
+        break;
+        case DLL_PROCESS_DETACH:
+        case DLL_THREAD_DETACH:
+        break;
+    }
+
+    return 0;
+}
+#else
+int main(int argc, char** argv) {
+    return _main(argc, argv);
+}
+#endif
