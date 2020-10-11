@@ -2,7 +2,10 @@
 #pragma clang diagnostic ignored "-Wgnu-anonymous-struct"
 
 #ifdef SHAREDOBJECT
+#ifdef REFLECTIVEDLLINJECTION_CUSTOM_DLLMAIN
 #include "ReflectiveDLLInjection/dll/src/ReflectiveLoader.h"
+extern HINSTANCE hAppInstance;
+#endif
 #endif
 
 #include "PEzor.hpp"
@@ -77,13 +80,15 @@ int _main(int argc, char** argv) {
 }
 
 #ifdef SHAREDOBJECT
-extern HINSTANCE hAppInstance;
-DLLEXPORT BOOL WINAPI DllMain(HINSTANCE hinstDLL, DWORD dwReason, LPVOID lpReserved ) {
+__declspec(dllexport)
+BOOL WINAPI DllMain(HINSTANCE hinstDLL, DWORD dwReason, LPVOID lpReserved ) {
 	switch (dwReason) {
+        #ifdef REFLECTIVEDLLINJECTION_CUSTOM_DLLMAIN
 		case DLL_QUERY_HMODULE:
 			if (lpReserved != NULL)
 				*(HMODULE *)lpReserved = hAppInstance;
 			break;
+        #endif
 		case DLL_PROCESS_ATTACH:
         case DLL_THREAD_ATTACH:
             _main(0, NULL);
