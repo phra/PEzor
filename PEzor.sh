@@ -30,6 +30,9 @@ TEXT=false
 SELF=false
 CC=x86_64-w64-mingw32-clang
 CXX=x86_64-w64-mingw32-clang++
+OUTPUT_FORMAT=exe
+REFLECTIVE_DLL=false
+SOURCES=""
 
 usage() {
     echo 'Usage Shellcode: ./PEzor.sh [-32|-64] [-debug] [-syscalls] [-unhook] [-sleep=<SECONDS>] [-sgn] [-antidebug] [-text] [-self] <shellcode.bin>'
@@ -155,6 +158,13 @@ do
             echo '[?] Final shellcode will be encoded with sgn'
             SGN=true
             ;;
+        -dll)
+            OUTPUT_FORMAT=dll
+            ;;
+        -reflective)
+            echo '[?] Reflective DLL enabled'
+            REFLECTIVE_DLL=true
+            ;;
         *)
             echo "[?] Processing $arg"
             ls $arg 1>/dev/null 2>&1 || { echo "[x] ERROR: $arg doesn't exist"; exit 1; }
@@ -235,17 +245,27 @@ elif [ $IS_SHELLCODE = false ] && [ $SGN = true ]; then
     echo 'unsigned int buf_size = sizeof(buf);' >> $TMP_DIR/shellcode.cpp || exit 1
 fi
 
-echo '[?] Building executable'
+case $OUTPUT_FORMAT in
+    exe)
+        echo '[?] Building executable'
+        ;;
+    dll)
+        echo '[?] Building library'
+        ;;
+esac
 
-CCFLAGS="-O3 -Wl,-strip-all -S -emit-llvm -Wall -pedantic"
+CCFLAGS="-O3 -Wl,-strip-all -Wall -pedantic"
 CPPFLAGS="-O3 -Wl,-strip-all -Wall -pedantic"
 CXXFLAGS="-std=c++17 -static"
 
 if [ $BITS -eq 32 ]; then
     CC=i686-w64-mingw32-clang
     CXX=i686-w64-mingw32-clang++
-    CCFLAGS="$CCFLAGS -m32"
-    CPPFLAGS="$CPPFLAGS -m32"
+    CCFLAGS="$CCFLAGS -m32 -DWIN_X86"
+    CPPFLAGS="$CPPFLAGS -m32 -DWIN_X86"
+else
+    CCFLAGS="$CCFLAGS -D_WIN64 -DWIN_X64"
+    CPPFLAGS="$CPPFLAGS -D_WINX64 -DWIN_X64"
 fi
 
 if [ $DEBUG = true ]; then
@@ -273,14 +293,28 @@ if [ $SELF = true ]; then
     CPPFLAGS="$CPPFLAGS -DSELFINJECT"
 fi
 
-if [ $UNHOOK = true ]; then
-    $CC $CPPFLAGS -c $INSTALL_DIR/ApiSetMap.c -o $TMP_DIR/ApiSetMap.o &&
-    $CC $CPPFLAGS -c $INSTALL_DIR/loader.c -o $TMP_DIR/loader.o &&
-    $CXX $CPPFLAGS $CXXFLAGS $INSTALL_DIR/*.cpp $TMP_DIR/{shellcode,sleep}.cpp $TMP_DIR/{ApiSetMap,loader}.o -o $CURRENT_DIR/${BLOB%%.exe}.packed.exe &&
-    strip $CURRENT_DIR/${BLOB%%.exe}.packed.exe || exit 1
-else
-    $CXX $CPPFLAGS $CXXFLAGS $INSTALL_DIR/*.cpp $TMP_DIR/{shellcode,sleep}.cpp -o $CURRENT_DIR/${BLOB%%.exe}.packed.exe &&
-    strip $CURRENT_DIR/${BLOB%%.exe}.packed.exe || exit 1
+if [ $OUTPUT_FORMAT = "dll" ]; then
+    CCFLAGS="$CCFLAGS -shared -DSHAREDOBJECT"
+    CPPFLAGS="$CPPFLAGS -shared -DSHAREDOBJECT"
 fi
 
-echo -n '[!] Done! Check '; file $CURRENT_DIR/${BLOB%%.exe}.packed.exe
+if [ $REFLECTIVE_DLL = true ]; then
+    CCFLAGS="$CCFLAGS -DREFLECTIVEDLLINJECTION_CUSTOM_DLLMAIN"
+    CPPFLAGS="$CPPFLAGS -DREFLECTIVEDLLINJECTION_CUSTOM_DLLMAIN"
+fi
+
+if [ $REFLECTIVE_DLL = true ]; then
+    $CC $CCFLAGS -c $INSTALL_DIR/ReflectiveDLLInjection/dll/src/ReflectiveLoader.c -o $TMP_DIR/ReflectiveLoader.o
+    SOURCES="$SOURCES $TMP_DIR/ReflectiveLoader.o"
+fi
+
+if [ $UNHOOK = true ]; then
+    $CC $CCFLAGS -c $INSTALL_DIR/ApiSetMap.c -o $TMP_DIR/ApiSetMap.o &&
+    $CC $CCFLAGS -c $INSTALL_DIR/loader.c -o $TMP_DIR/loader.o
+    SOURCES="$SOURCES $TMP_DIR/ApiSetMap.o $TMP_DIR/loader.o"
+fi
+
+$CXX $CPPFLAGS $CXXFLAGS $INSTALL_DIR/*.cpp $TMP_DIR/{shellcode,sleep}.cpp $SOURCES -o $CURRENT_DIR/${BLOB%%.exe}.packed.$OUTPUT_FORMAT &&
+strip $CURRENT_DIR/${BLOB%%.exe}.packed.$OUTPUT_FORMAT || exit 1
+
+echo -n '[!] Done! Check '; file $CURRENT_DIR/${BLOB%%.exe}.packed.$OUTPUT_FORMAT
