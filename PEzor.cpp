@@ -134,8 +134,10 @@ DWORD HandlerEx(DWORD dwControl, DWORD dwEventType, LPVOID lpEventData, LPVOID l
     return NO_ERROR;
 }
 
+#ifdef SERVICE_DLL
 extern "C"
 __declspec(dllexport)
+#endif
 VOID ServiceMain(DWORD dwArgc, LPCWSTR* lpszArgv) {
     if (dwArgc > 0)
         g_serviceStatusHandle = RegisterServiceCtrlHandlerExW(lpszArgv[0], HandlerEx, nullptr);
@@ -151,6 +153,18 @@ VOID ServiceMain(DWORD dwArgc, LPCWSTR* lpszArgv) {
 
     _main(0, NULL);
 }
+
+#ifndef SERVICE_DLL
+char cServiceName[] = "SERVICE";
+
+int __stdcall WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine, int nCmdShow) {
+	SERVICE_TABLE_ENTRY st[] = {
+        { (LPSTR)&cServiceName, (LPSERVICE_MAIN_FUNCTIONA)&ServiceMain },
+        { NULL, NULL }
+    };
+	return StartServiceCtrlDispatcher( (SERVICE_TABLE_ENTRY *)&st );
+}
+#endif
 #else
 int main(int argc, char** argv) {
     return _main(argc, argv);
