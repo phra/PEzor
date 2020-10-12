@@ -31,7 +31,7 @@ SELF=false
 CC=x86_64-w64-mingw32-clang
 CXX=x86_64-w64-mingw32-clang++
 OUTPUT_FORMAT=exe
-REFLECTIVE_DLL=false
+OUTPUT_EXTENSION=exe
 SOURCES=""
 
 usage() {
@@ -54,6 +54,7 @@ OPTIONS
   -text                     Store shellcode in .text section instead of .data
   -self                     Execute the shellcode in the same thread [requires RX shellcode, not compatible with -sgn]
   -sleep=N                  Sleeps for N seconds before unpacking the shellcode
+  -format=FORMAT            Outputs result in specified FORMAT (exe, dll, reflective-dll)
   [donut args...]           After the executable to pack, you can pass additional Donut args, such as -z 2
 
 EXAMPLES
@@ -82,6 +83,7 @@ OPTIONS
   -text                     Store shellcode in .text section instead of .data
   -self                     Execute the shellcode in the same thread [requires RX shellcode, not compatible with -sgn]
   -sleep=N                  Sleeps for N seconds before unpacking the shellcode
+  -format=FORMAT            Outputs result in specified FORMAT (exe, dll, reflective-dll)
 
 EXAMPLES
   # 64-bit (self-inject)
@@ -158,12 +160,9 @@ do
             echo '[?] Final shellcode will be encoded with sgn'
             SGN=true
             ;;
-        -dll)
-            OUTPUT_FORMAT=dll
-            ;;
-        -reflective)
-            echo '[?] Reflective DLL enabled'
-            REFLECTIVE_DLL=true
+        -format=*)
+            OUTPUT_FORMAT="${arg#*=}"
+            echo "[?] Output format: $OUTPUT_FORMAT"
             ;;
         *)
             echo "[?] Processing $arg"
@@ -248,9 +247,15 @@ fi
 case $OUTPUT_FORMAT in
     exe)
         echo '[?] Building executable'
+        OUTPUT_EXTENSION=exe
         ;;
     dll)
-        echo '[?] Building library'
+        echo '[?] Building shared library'
+        OUTPUT_EXTENSION=dll
+        ;;
+    reflective-dll)
+        echo '[?] Building reflective shared library'
+        OUTPUT_EXTENSION=reflective.dll
         ;;
 esac
 
@@ -293,17 +298,17 @@ if [ $SELF = true ]; then
     CPPFLAGS="$CPPFLAGS -DSELFINJECT"
 fi
 
-if [ $OUTPUT_FORMAT = "dll" ]; then
+if [ $OUTPUT_FORMAT = "dll" ] || [ $OUTPUT_FORMAT = "reflective-dll" ]; then
     CCFLAGS="$CCFLAGS -shared -DSHAREDOBJECT"
     CPPFLAGS="$CPPFLAGS -shared -DSHAREDOBJECT"
 fi
 
-if [ $REFLECTIVE_DLL = true ]; then
+if [ $OUTPUT_FORMAT = "reflective-dll" ]; then
     CCFLAGS="$CCFLAGS -DREFLECTIVEDLLINJECTION_CUSTOM_DLLMAIN"
     CPPFLAGS="$CPPFLAGS -DREFLECTIVEDLLINJECTION_CUSTOM_DLLMAIN"
 fi
 
-if [ $REFLECTIVE_DLL = true ]; then
+if [ $OUTPUT_FORMAT = "reflective-dll" ]; then
     $CC $CCFLAGS -c $INSTALL_DIR/ReflectiveDLLInjection/dll/src/ReflectiveLoader.c -o $TMP_DIR/ReflectiveLoader.o
     SOURCES="$SOURCES $TMP_DIR/ReflectiveLoader.o"
 fi
@@ -314,7 +319,7 @@ if [ $UNHOOK = true ]; then
     SOURCES="$SOURCES $TMP_DIR/ApiSetMap.o $TMP_DIR/loader.o"
 fi
 
-$CXX $CPPFLAGS $CXXFLAGS $INSTALL_DIR/*.cpp $TMP_DIR/{shellcode,sleep}.cpp $SOURCES -o $CURRENT_DIR/${BLOB%%.exe}.packed.$OUTPUT_FORMAT &&
-strip $CURRENT_DIR/${BLOB%%.exe}.packed.$OUTPUT_FORMAT || exit 1
+$CXX $CPPFLAGS $CXXFLAGS $INSTALL_DIR/*.cpp $TMP_DIR/{shellcode,sleep}.cpp $SOURCES -o $CURRENT_DIR/${BLOB%%.exe}.packed.$OUTPUT_EXTENSION &&
+strip $CURRENT_DIR/${BLOB%%.exe}.packed.$OUTPUT_EXTENSION || exit 1
 
-echo -n '[!] Done! Check '; file $CURRENT_DIR/${BLOB%%.exe}.packed.$OUTPUT_FORMAT
+echo -n '[!] Done! Check '; file $CURRENT_DIR/${BLOB%%.exe}.packed.$OUTPUT_EXTENSION
