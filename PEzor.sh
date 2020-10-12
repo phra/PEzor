@@ -257,6 +257,14 @@ case $OUTPUT_FORMAT in
         echo '[?] Building reflective shared library'
         OUTPUT_EXTENSION=reflective.dll
         ;;
+    service-exe)
+        echo '[?] Building service executable'
+        OUTPUT_EXTENSION=service.exe
+        ;;
+    service-dll)
+        echo '[?] Building service shared library'
+        OUTPUT_EXTENSION=service.dll
+        ;;
 esac
 
 CCFLAGS="-O3 -Wl,-strip-all -Wall -pedantic"
@@ -298,14 +306,18 @@ if [ $SELF = true ]; then
     CPPFLAGS="$CPPFLAGS -DSELFINJECT"
 fi
 
-if [ $OUTPUT_FORMAT = "dll" ] || [ $OUTPUT_FORMAT = "reflective-dll" ]; then
+if [ $OUTPUT_FORMAT = "dll" ]; then
     CCFLAGS="$CCFLAGS -shared -DSHAREDOBJECT"
     CPPFLAGS="$CPPFLAGS -shared -DSHAREDOBJECT"
-fi
-
-if [ $OUTPUT_FORMAT = "reflective-dll" ]; then
-    CCFLAGS="$CCFLAGS -DREFLECTIVEDLLINJECTION_CUSTOM_DLLMAIN"
-    CPPFLAGS="$CPPFLAGS -DREFLECTIVEDLLINJECTION_CUSTOM_DLLMAIN"
+elif [ $OUTPUT_FORMAT = "reflective-dll" ]; then
+    CCFLAGS="$CCFLAGS -shared -DSHAREDOBJECT -DREFLECTIVEDLLINJECTION_CUSTOM_DLLMAIN"
+    CPPFLAGS="$CPPFLAGS -shared -DSHAREDOBJECT -DREFLECTIVEDLLINJECTION_CUSTOM_DLLMAIN"
+elif [ $OUTPUT_FORMAT = "service-exe" ]; then
+    CCFLAGS="$CCFLAGS -DSERVICE_EXE"
+    CPPFLAGS="$CPPFLAGS -DSERVICE_EXE"
+elif [ $OUTPUT_FORMAT = "service-dll" ]; then
+    CCFLAGS="$CCFLAGS -shared -DSHAREDOBJECT -DSERVICE_EXE -DSERVICE_DLL "
+    CPPFLAGS="$CPPFLAGS -shared -DSHAREDOBJECT -DSERVICE_EXE -DSERVICE_DLL"
 fi
 
 if [ $OUTPUT_FORMAT = "reflective-dll" ]; then
