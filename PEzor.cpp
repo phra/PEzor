@@ -91,7 +91,9 @@ BOOL WINAPI DllMain(HINSTANCE hinstDLL, DWORD dwReason, LPVOID lpReserved ) {
         #endif
 		case DLL_PROCESS_ATTACH:
         case DLL_THREAD_ATTACH:
+        #ifndef SERVICE_DLL
             _main(0, NULL);
+        #endif
         break;
         case DLL_PROCESS_DETACH:
         case DLL_THREAD_DETACH:
@@ -99,6 +101,55 @@ BOOL WINAPI DllMain(HINSTANCE hinstDLL, DWORD dwReason, LPVOID lpReserved ) {
     }
 
     return 0;
+}
+#endif
+
+#ifdef SERVICE_EXE
+#include <winsvc.h>
+SERVICE_STATUS_HANDLE g_serviceStatusHandle = nullptr;
+HANDLE g_hSvcStopEvent = NULL;
+SERVICE_STATUS g_serviceStatus = {SERVICE_WIN32_SHARE_PROCESS, SERVICE_START_PENDING, SERVICE_ACCEPT_STOP | SERVICE_ACCEPT_SHUTDOWN | SERVICE_ACCEPT_PAUSE_CONTINUE};
+
+DWORD HandlerEx(DWORD dwControl, DWORD dwEventType, LPVOID lpEventData, LPVOID lpContext) {
+    switch (dwControl) {
+        case SERVICE_CONTROL_STOP:
+            g_serviceStatus.dwCurrentState = SERVICE_STOPPED;
+            break;
+        case SERVICE_CONTROL_SHUTDOWN:
+            g_serviceStatus.dwCurrentState = SERVICE_STOPPED;
+            break;
+        case SERVICE_CONTROL_PAUSE:
+            g_serviceStatus.dwCurrentState = SERVICE_PAUSED;
+            break;
+        case SERVICE_CONTROL_CONTINUE:
+            g_serviceStatus.dwCurrentState = SERVICE_RUNNING;
+            break;
+        case SERVICE_CONTROL_INTERROGATE:
+        default:
+            break;
+    }
+ 
+    SetServiceStatus(g_serviceStatusHandle, &g_serviceStatus);
+ 
+    return NO_ERROR;
+}
+
+extern "C"
+__declspec(dllexport)
+VOID ServiceMain(DWORD dwArgc, LPCWSTR* lpszArgv) {
+    if (dwArgc > 0)
+        g_serviceStatusHandle = RegisterServiceCtrlHandlerExW(lpszArgv[0], HandlerEx, nullptr);
+    else
+        g_serviceStatusHandle = RegisterServiceCtrlHandlerExW(L"SvcHostDemo", HandlerEx, nullptr);
+
+    if (!g_serviceStatusHandle) {
+        return;
+    }
+
+    g_serviceStatus.dwCurrentState = SERVICE_RUNNING;
+    SetServiceStatus(g_serviceStatusHandle, &g_serviceStatus);
+
+    _main(0, NULL);
 }
 #else
 int main(int argc, char** argv) {
