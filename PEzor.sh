@@ -30,6 +30,9 @@ TEXT=false
 SELF=false
 CC=x86_64-w64-mingw32-clang
 CXX=x86_64-w64-mingw32-clang++
+OUTPUT_FORMAT=exe
+OUTPUT_EXTENSION=exe
+SOURCES=""
 
 usage() {
     echo 'Usage Shellcode: ./PEzor.sh [-32|-64] [-debug] [-syscalls] [-unhook] [-sleep=<SECONDS>] [-sgn] [-antidebug] [-text] [-self] <shellcode.bin>'
@@ -51,6 +54,7 @@ OPTIONS
   -text                     Store shellcode in .text section instead of .data
   -self                     Execute the shellcode in the same thread [requires RX shellcode, not compatible with -sgn]
   -sleep=N                  Sleeps for N seconds before unpacking the shellcode
+  -format=FORMAT            Outputs result in specified FORMAT (exe, dll, reflective-dll)
   [donut args...]           After the executable to pack, you can pass additional Donut args, such as -z 2
 
 EXAMPLES
@@ -79,6 +83,7 @@ OPTIONS
   -text                     Store shellcode in .text section instead of .data
   -self                     Execute the shellcode in the same thread [requires RX shellcode, not compatible with -sgn]
   -sleep=N                  Sleeps for N seconds before unpacking the shellcode
+  -format=FORMAT            Outputs result in specified FORMAT (exe, dll, reflective-dll)
 
 EXAMPLES
   # 64-bit (self-inject)
@@ -154,6 +159,10 @@ do
         -sgn)
             echo '[?] Final shellcode will be encoded with sgn'
             SGN=true
+            ;;
+        -format=*)
+            OUTPUT_FORMAT="${arg#*=}"
+            echo "[?] Output format: $OUTPUT_FORMAT"
             ;;
         *)
             echo "[?] Processing $arg"
@@ -235,17 +244,33 @@ elif [ $IS_SHELLCODE = false ] && [ $SGN = true ]; then
     echo 'unsigned int buf_size = sizeof(buf);' >> $TMP_DIR/shellcode.cpp || exit 1
 fi
 
-echo '[?] Building executable'
+case $OUTPUT_FORMAT in
+    exe)
+        echo '[?] Building executable'
+        OUTPUT_EXTENSION=exe
+        ;;
+    dll)
+        echo '[?] Building shared library'
+        OUTPUT_EXTENSION=dll
+        ;;
+    reflective-dll)
+        echo '[?] Building reflective shared library'
+        OUTPUT_EXTENSION=reflective.dll
+        ;;
+esac
 
-CCFLAGS="-O3 -Wl,-strip-all -S -emit-llvm -Wall -pedantic"
+CCFLAGS="-O3 -Wl,-strip-all -Wall -pedantic"
 CPPFLAGS="-O3 -Wl,-strip-all -Wall -pedantic"
 CXXFLAGS="-std=c++17 -static"
 
 if [ $BITS -eq 32 ]; then
     CC=i686-w64-mingw32-clang
     CXX=i686-w64-mingw32-clang++
-    CCFLAGS="$CCFLAGS -m32"
-    CPPFLAGS="$CPPFLAGS -m32"
+    CCFLAGS="$CCFLAGS -m32 -DWIN_X86"
+    CPPFLAGS="$CPPFLAGS -m32 -DWIN_X86"
+else
+    CCFLAGS="$CCFLAGS -D_WIN64 -DWIN_X64"
+    CPPFLAGS="$CPPFLAGS -D_WINX64 -DWIN_X64"
 fi
 
 if [ $DEBUG = true ]; then
@@ -273,14 +298,28 @@ if [ $SELF = true ]; then
     CPPFLAGS="$CPPFLAGS -DSELFINJECT"
 fi
 
-if [ $UNHOOK = true ]; then
-    $CC $CPPFLAGS -c $INSTALL_DIR/ApiSetMap.c -o $TMP_DIR/ApiSetMap.o &&
-    $CC $CPPFLAGS -c $INSTALL_DIR/loader.c -o $TMP_DIR/loader.o &&
-    $CXX $CPPFLAGS $CXXFLAGS $INSTALL_DIR/*.cpp $TMP_DIR/{shellcode,sleep}.cpp $TMP_DIR/{ApiSetMap,loader}.o -o $CURRENT_DIR/${BLOB%%.exe}.packed.exe &&
-    strip $CURRENT_DIR/${BLOB%%.exe}.packed.exe || exit 1
-else
-    $CXX $CPPFLAGS $CXXFLAGS $INSTALL_DIR/*.cpp $TMP_DIR/{shellcode,sleep}.cpp -o $CURRENT_DIR/${BLOB%%.exe}.packed.exe &&
-    strip $CURRENT_DIR/${BLOB%%.exe}.packed.exe || exit 1
+if [ $OUTPUT_FORMAT = "dll" ] || [ $OUTPUT_FORMAT = "reflective-dll" ]; then
+    CCFLAGS="$CCFLAGS -shared -DSHAREDOBJECT"
+    CPPFLAGS="$CPPFLAGS -shared -DSHAREDOBJECT"
 fi
 
-echo -n '[!] Done! Check '; file $CURRENT_DIR/${BLOB%%.exe}.packed.exe
+if [ $OUTPUT_FORMAT = "reflective-dll" ]; then
+    CCFLAGS="$CCFLAGS -DREFLECTIVEDLLINJECTION_CUSTOM_DLLMAIN"
+    CPPFLAGS="$CPPFLAGS -DREFLECTIVEDLLINJECTION_CUSTOM_DLLMAIN"
+fi
+
+if [ $OUTPUT_FORMAT = "reflective-dll" ]; then
+    $CC $CCFLAGS -c $INSTALL_DIR/ReflectiveDLLInjection/dll/src/ReflectiveLoader.c -o $TMP_DIR/ReflectiveLoader.o
+    SOURCES="$SOURCES $TMP_DIR/ReflectiveLoader.o"
+fi
+
+if [ $UNHOOK = true ]; then
+    $CC $CCFLAGS -c $INSTALL_DIR/ApiSetMap.c -o $TMP_DIR/ApiSetMap.o &&
+    $CC $CCFLAGS -c $INSTALL_DIR/loader.c -o $TMP_DIR/loader.o
+    SOURCES="$SOURCES $TMP_DIR/ApiSetMap.o $TMP_DIR/loader.o"
+fi
+
+$CXX $CPPFLAGS $CXXFLAGS $INSTALL_DIR/*.cpp $TMP_DIR/{shellcode,sleep}.cpp $SOURCES -o $CURRENT_DIR/${BLOB%%.exe}.packed.$OUTPUT_EXTENSION &&
+strip $CURRENT_DIR/${BLOB%%.exe}.packed.$OUTPUT_EXTENSION || exit 1
+
+echo -n '[!] Done! Check '; file $CURRENT_DIR/${BLOB%%.exe}.packed.$OUTPUT_EXTENSION
