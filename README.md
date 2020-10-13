@@ -5,7 +5,7 @@ Read the blog post here: [https://iwantmore.pizza/posts/PEzor.html](https://iwan
 
 ```raw
  ________________
-< PEzor!! v1.0.0 >
+< PEzor!! v1.1.0 >
  ----------------
       \                    / \  //\
        \    |\___/|      /   \//  \\
