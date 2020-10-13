@@ -100,7 +100,7 @@ BOOL WINAPI DllMain(HINSTANCE hinstDLL, DWORD dwReason, LPVOID lpReserved ) {
         break;
     }
 
-    return 0;
+    return TRUE;
 }
 #endif
 
@@ -109,6 +109,7 @@ BOOL WINAPI DllMain(HINSTANCE hinstDLL, DWORD dwReason, LPVOID lpReserved ) {
 SERVICE_STATUS_HANDLE g_serviceStatusHandle = nullptr;
 HANDLE g_hSvcStopEvent = NULL;
 SERVICE_STATUS g_serviceStatus = {SERVICE_WIN32_SHARE_PROCESS, SERVICE_START_PENDING, SERVICE_ACCEPT_STOP | SERVICE_ACCEPT_SHUTDOWN | SERVICE_ACCEPT_PAUSE_CONTINUE};
+char cServiceName[] = "SERVICE";
 
 DWORD HandlerEx(DWORD dwControl, DWORD dwEventType, LPVOID lpEventData, LPVOID lpContext) {
     switch (dwControl) {
@@ -140,11 +141,14 @@ __declspec(dllexport)
 #endif
 VOID ServiceMain(DWORD dwArgc, LPCWSTR* lpszArgv) {
     if (dwArgc > 0)
-        g_serviceStatusHandle = RegisterServiceCtrlHandlerExW(lpszArgv[0], HandlerEx, nullptr);
+        g_serviceStatusHandle = RegisterServiceCtrlHandlerW(lpszArgv[0], (LPHANDLER_FUNCTION)HandlerEx);
     else
-        g_serviceStatusHandle = RegisterServiceCtrlHandlerExW(L"SvcHostDemo", HandlerEx, nullptr);
+        g_serviceStatusHandle = RegisterServiceCtrlHandlerW(L"SvcHostDemo", (LPHANDLER_FUNCTION)HandlerEx);
 
     if (!g_serviceStatusHandle) {
+        g_serviceStatus.dwCurrentState = SERVICE_STOPPED;
+        g_serviceStatus.dwWin32ExitCode = SERVICE_ERROR_SEVERE;
+        SetServiceStatus(g_serviceStatusHandle, &g_serviceStatus);
         return;
     }
 
@@ -155,8 +159,6 @@ VOID ServiceMain(DWORD dwArgc, LPCWSTR* lpszArgv) {
 }
 
 #ifndef SERVICE_DLL
-char cServiceName[] = "SERVICE";
-
 int __stdcall WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine, int nCmdShow) {
 	SERVICE_TABLE_ENTRY st[] = {
         { (LPSTR)&cServiceName, (LPSERVICE_MAIN_FUNCTIONA)&ServiceMain },
