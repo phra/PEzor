@@ -111,6 +111,7 @@ HANDLE g_hSvcStopEvent = NULL;
 SERVICE_STATUS g_serviceStatus = {SERVICE_WIN32_SHARE_PROCESS, SERVICE_START_PENDING, SERVICE_ACCEPT_STOP | SERVICE_ACCEPT_SHUTDOWN | SERVICE_ACCEPT_PAUSE_CONTINUE};
 char cServiceName[] = "SERVICE";
 
+__attribute__((stdcall))
 DWORD HandlerEx(DWORD dwControl, DWORD dwEventType, LPVOID lpEventData, LPVOID lpContext) {
     switch (dwControl) {
         case SERVICE_CONTROL_STOP:
