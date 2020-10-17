@@ -359,6 +359,7 @@ namespace Injector
         public const uint PAGE_EXECUTE_READWRITE = 0x40;
         public const uint PAGE_EXECUTE_READ = 0x20;
         public const uint PAGE_READWRITE = 0x04;
+        public const uint MEM_COMMIT = 0x1000;
         
         [StructLayout(LayoutKind.Sequential)]
         public struct LARGE_INTEGER
@@ -397,18 +398,18 @@ namespace Injector
 
         }
 
-        public static bool VirtualProtectEx(IntPtr hProcess, IntPtr lpAddress, IntPtr dwSize, uint newprotect, out uint oldprotect)
+        public static bool VirtualProtectEx(IntPtr hProcess, IntPtr lpAddress, UIntPtr dwSize, uint newprotect, out uint oldprotect)
         {
             IntPtr proc = GetProcAddress(GetKernelBaseDll(), "VirtualProtectEx");
             NativeSysCall.Delegates.VirtualProtectEx VirtualProtectEx = (NativeSysCall.Delegates.VirtualProtectEx)Marshal.GetDelegateForFunctionPointer(proc, typeof(NativeSysCall.Delegates.VirtualProtectEx));
             return VirtualProtectEx(hProcess, lpAddress, dwSize, newprotect, out oldprotect);
         }
 
-        public static bool VirtualProtect(IntPtr lpAddress, UIntPtr dwSize, uint flNewProtect, out uint lpflOldProtect)
+        public static IntPtr VirtualAlloc(UInt32 lpStartAddr, UInt32 size, UInt32 flAllocationType, UInt32 flProtect)
         {
-            IntPtr proc = GetProcAddress(GetKernelBaseDll(), "VirtualProtect");
-            NativeSysCall.Delegates.VirtualProtect VirtualProtect = (NativeSysCall.Delegates.VirtualProtect)Marshal.GetDelegateForFunctionPointer(proc, typeof(NativeSysCall.Delegates.VirtualProtect));
-            return VirtualProtect(lpAddress, dwSize, flNewProtect, out lpflOldProtect);
+            IntPtr proc = GetProcAddress(GetKernelBaseDll(), "VirtualAlloc");
+            NativeSysCall.Delegates.VirtualAlloc VirtualAlloc = (NativeSysCall.Delegates.VirtualAlloc)Marshal.GetDelegateForFunctionPointer(proc, typeof(NativeSysCall.Delegates.VirtualAlloc));
+            return VirtualAlloc(lpStartAddr, size, flAllocationType, flProtect);
         }
 
         public static UInt32 WaitForSingleObject(IntPtr hHandle, UInt32 dwMilliseconds)

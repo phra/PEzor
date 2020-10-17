@@ -61,13 +61,17 @@ namespace Injector
             public delegate bool VirtualProtectEx(
                 IntPtr hProcess,
                 IntPtr lpAddress,
-                IntPtr dwSize,
+                UIntPtr dwSize,
                 uint newprotect,
                 out uint oldprotect);
             
             [SuppressUnmanagedCodeSecurity]
             [UnmanagedFunctionPointer(CallingConvention.StdCall)]
-            public delegate bool VirtualProtect(IntPtr lpAddress, UIntPtr dwSize, uint flNewProtect, out uint lpflOldProtect);
+            public delegate IntPtr VirtualAlloc(
+                UInt32 lpStartAddr,
+                UInt32 size,
+                UInt32 flAllocationType,
+                UInt32 flProtect);
         }
     }
 }

