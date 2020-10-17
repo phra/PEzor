@@ -390,23 +390,37 @@ namespace Injector
 
         }
 
-        public static bool VirtualProtectEx(IntPtr hHandle, IntPtr lpAddress, UIntPtr dwSize, uint flNewProtect, out uint lpflOldProtect)
+        private static IntPtr GetKernelBaseDll()
         {
-            IntPtr proc = GetProcAddress(GetKernel32Dll(), "VirtualProtectEx");
+
+            return LoadLibrary("kernelbase.dll");
+
+        }
+
+        public static bool VirtualProtectEx(IntPtr hProcess, IntPtr lpAddress, IntPtr dwSize, uint newprotect, out uint oldprotect)
+        {
+            IntPtr proc = GetProcAddress(GetKernelBaseDll(), "VirtualProtectEx");
             NativeSysCall.Delegates.VirtualProtectEx VirtualProtectEx = (NativeSysCall.Delegates.VirtualProtectEx)Marshal.GetDelegateForFunctionPointer(proc, typeof(NativeSysCall.Delegates.VirtualProtectEx));
-            return VirtualProtectEx(hHandle, lpAddress, dwSize, flNewProtect, out lpflOldProtect);
+            return VirtualProtectEx(hProcess, lpAddress, dwSize, newprotect, out oldprotect);
+        }
+
+        public static bool VirtualProtect(IntPtr lpAddress, UIntPtr dwSize, uint flNewProtect, out uint lpflOldProtect)
+        {
+            IntPtr proc = GetProcAddress(GetKernelBaseDll(), "VirtualProtect");
+            NativeSysCall.Delegates.VirtualProtect VirtualProtect = (NativeSysCall.Delegates.VirtualProtect)Marshal.GetDelegateForFunctionPointer(proc, typeof(NativeSysCall.Delegates.VirtualProtect));
+            return VirtualProtect(lpAddress, dwSize, flNewProtect, out lpflOldProtect);
         }
 
         public static UInt32 WaitForSingleObject(IntPtr hHandle, UInt32 dwMilliseconds)
         {
-            IntPtr proc = GetProcAddress(GetKernel32Dll(), "WaitForSingleObject");
+            IntPtr proc = GetProcAddress(GetKernelBaseDll(), "WaitForSingleObject");
             NativeSysCall.Delegates.WaitForSingleObject WaitForSingleObject = (NativeSysCall.Delegates.WaitForSingleObject)Marshal.GetDelegateForFunctionPointer(proc, typeof(NativeSysCall.Delegates.WaitForSingleObject));
             return WaitForSingleObject(hHandle, dwMilliseconds);
         }
 
-        public static int CreateThread(UInt32 lpThreadAttributes, UInt32 dwStackSize, IntPtr lpStartAddress, IntPtr param, UInt32 dwCreationFlags, ref UInt32 lpThreadId)
+        public static IntPtr CreateThread(UInt32 lpThreadAttributes, UInt32 dwStackSize, IntPtr lpStartAddress, IntPtr param, UInt32 dwCreationFlags, ref UInt32 lpThreadId)
         {
-            IntPtr proc = GetProcAddress(GetKernel32Dll(), "CreateThread");
+            IntPtr proc = GetProcAddress(GetKernelBaseDll(), "CreateThread");
             NativeSysCall.Delegates.CreateThread CreateThread = (NativeSysCall.Delegates.CreateThread)Marshal.GetDelegateForFunctionPointer(proc, typeof(NativeSysCall.Delegates.CreateThread));
             return CreateThread(lpThreadAttributes, dwStackSize, lpStartAddress, param, dwCreationFlags, ref lpThreadId);
         }

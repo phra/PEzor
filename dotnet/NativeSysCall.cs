@@ -42,7 +42,7 @@ namespace Injector
 
             [SuppressUnmanagedCodeSecurity]
             [UnmanagedFunctionPointer(CallingConvention.Cdecl)]
-            public delegate int CreateThread(
+            public delegate IntPtr CreateThread(
                 UInt32 lpThreadAttributes,
                 UInt32 dwStackSize,
                 IntPtr lpStartAddress,
@@ -57,13 +57,17 @@ namespace Injector
                 UInt32 dwMilliseconds);
 
             [SuppressUnmanagedCodeSecurity]
-            [UnmanagedFunctionPointer(CallingConvention.Cdecl)]
+            [UnmanagedFunctionPointer(CallingConvention.StdCall)]
             public delegate bool VirtualProtectEx(
                 IntPtr hProcess,
                 IntPtr lpAddress,
-                UIntPtr dwSize,
-                uint flNewProtect,
-                out uint lpflOldProtect);
+                IntPtr dwSize,
+                uint newprotect,
+                out uint oldprotect);
+            
+            [SuppressUnmanagedCodeSecurity]
+            [UnmanagedFunctionPointer(CallingConvention.StdCall)]
+            public delegate bool VirtualProtect(IntPtr lpAddress, UIntPtr dwSize, uint flNewProtect, out uint lpflOldProtect);
         }
     }
 }
