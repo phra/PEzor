@@ -151,7 +151,6 @@ do
         -self)
             SELF=true
             echo "[?] Self-executing payload"
-            echo "[*] Warning: -self requires -text and supports RX shellcode only"
             ;;
         -antidebug)
             ANTIDEBUG=true
@@ -175,6 +174,7 @@ do
             ;;
         -rx)
             echo '[?] Allocating RX memory for execution'
+            echo "[*] Warning: -rx supports RX shellcode only"
             RX=true
             ;;
         -format=*)
@@ -202,10 +202,10 @@ if [ $BITS -eq 32 ] && [ $SYSCALLS = true ]; then
     exit 1
 fi
 
-if [ $SELF = true ] && [ $SYSCALLS = true ]; then
-    echo '[x] Error: cannot execute raw syscalls when self-executing the payload'
-    exit 1
-fi
+# if [ $SELF = true ] && [ $SYSCALLS = true ]; then
+#     echo '[x] Error: cannot execute raw syscalls when self-executing the payload'
+#     exit 1
+# fi
 
 if [ $RX = true ] && [ $SGN = true ]; then
     echo '[x] Error: cannot encode the shellcode when self-executing the payload'
@@ -326,6 +326,11 @@ case $OUTPUT_FORMAT in
             CPPFLAGS="$CPPFLAGS -DRX"
         fi
 
+        if [ $TEXT = true ]; then
+            CCFLAGS="$CCFLAGS -D_TEXT_"
+            CPPFLAGS="$CPPFLAGS -D_TEXT_"
+        fi
+
         if [ $OUTPUT_FORMAT = "dll" ]; then
             CCFLAGS="$CCFLAGS -shared -DSHAREDOBJECT"
             CPPFLAGS="$CPPFLAGS -shared -DSHAREDOBJECT"
@@ -351,6 +356,7 @@ case $OUTPUT_FORMAT in
             SOURCES="$SOURCES $TMP_DIR/ApiSetMap.o $TMP_DIR/loader.o"
         fi
 
+        echo $CXX $CPPFLAGS $CXXFLAGS $INSTALL_DIR/*.cpp $TMP_DIR/{shellcode,sleep}.cpp $SOURCES -o $CURRENT_DIR/${BLOB%%.exe}.packed.$OUTPUT_EXTENSION
         $CXX $CPPFLAGS $CXXFLAGS $INSTALL_DIR/*.cpp $TMP_DIR/{shellcode,sleep}.cpp $SOURCES -o $CURRENT_DIR/${BLOB%%.exe}.packed.$OUTPUT_EXTENSION
         ;;
     dotnet*)
