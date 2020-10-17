@@ -29,7 +29,7 @@ namespace Injector {
                     Natives.GenericAll,
                     IntPtr.Zero,
                     ref largeinteger,
-                    perm,
+                    Natives.PAGE_EXECUTE_READWRITE,
                     Natives.SecCommit,
                     IntPtr.Zero) != 0) {
                     #if _DEBUG_
@@ -55,7 +55,7 @@ namespace Injector {
                     ref viewSize,
                     1,
                     0,
-                    perm) != 0) {
+                    Natives.PAGE_EXECUTE_READWRITE) != 0) {
                     #if _DEBUG_
                         Console.WriteLine("error in Natives.ZwMapViewOfSection");
                     #endif
