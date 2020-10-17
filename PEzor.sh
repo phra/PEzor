@@ -408,12 +408,15 @@ case $OUTPUT_FORMAT in
 
         case $OUTPUT_FORMAT in
         dotnet)
-            echo mcs $DOTNET_FLAGS -out:$CURRENT_DIR/${BLOB%%.exe}.packed.$OUTPUT_EXTENSION $INSTALL_DIR/dotnet/*.cs $TMP_DIR/Global.cs
             mcs $DOTNET_FLAGS -out:$CURRENT_DIR/${BLOB%%.exe}.packed.$OUTPUT_EXTENSION $INSTALL_DIR/dotnet/*.cs $TMP_DIR/Global.cs
             ;;
         dotnet-pinvoke)
             DOTNET_FLAGS="$DOTNET_FLAGS -define:PINVOKE"
             mcs $DOTNET_FLAGS -out:$CURRENT_DIR/${BLOB%%.exe}.packed.$OUTPUT_EXTENSION $INSTALL_DIR/dotnet/Program.cs $TMP_DIR/Global.cs
+            ;;
+        dotnet-createsection)
+            DOTNET_FLAGS="$DOTNET_FLAGS -define:MAPVIEWOFSECTION"
+            mcs $DOTNET_FLAGS -out:$CURRENT_DIR/${BLOB%%.exe}.packed.$OUTPUT_EXTENSION $INSTALL_DIR/dotnet/*.cs $TMP_DIR/Global.cs
             ;;
         esac
 
