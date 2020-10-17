@@ -7,6 +7,6 @@
 #include "syscalls.hpp"
 
 void my_init_syscalls_list(void);
-NTSTATUS inject_shellcode_self(unsigned char shellcode[], SIZE_T size, PHANDLE phThread, BOOL wait, unsigned int sleep_time);
+int inject_shellcode_self(unsigned char shellcode[], SIZE_T size, PHANDLE phThread, BOOL wait, unsigned int sleep_time);
 
 #endif

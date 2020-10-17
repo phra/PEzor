@@ -6,7 +6,7 @@ INSTALL_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 cd $INSTALL_DIR &&
 
 apt update &&
-apt install -y wget unzip build-essential cmake autotools-dev git clang golang mingw-w64 libcapstone-dev libssl-dev cowsay &&
+apt install -y wget unzip build-essential cmake autotools-dev git clang golang mingw-w64 libcapstone-dev libssl-dev cowsay mono-devel &&
 
 mkdir -p deps &&
 cd deps &&
