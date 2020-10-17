@@ -356,7 +356,8 @@ case $OUTPUT_FORMAT in
             SOURCES="$SOURCES $TMP_DIR/ApiSetMap.o $TMP_DIR/loader.o"
         fi
 
-        $CXX $CPPFLAGS $CXXFLAGS $INSTALL_DIR/*.cpp $TMP_DIR/{shellcode,sleep}.cpp $SOURCES -o $CURRENT_DIR/${BLOB%%.exe}.packed.$OUTPUT_EXTENSION
+        $CXX $CPPFLAGS $CXXFLAGS $INSTALL_DIR/*.cpp $TMP_DIR/{shellcode,sleep}.cpp $SOURCES -o $CURRENT_DIR/${BLOB%%.exe}.packed.$OUTPUT_EXTENSION &&
+        strip $CURRENT_DIR/${BLOB%%.exe}.packed.$OUTPUT_EXTENSION || exit 1
         ;;
     dotnet*)
         echo 'public static class Global {' >> $TMP_DIR/Global.cs &&
@@ -386,7 +387,7 @@ case $OUTPUT_FORMAT in
             echo -n '};' >> $TMP_DIR/Global.cs
         fi
         echo '}' >> $TMP_DIR/Global.cs
-        DOTNET_FLAGS="-unsafe -optimize- -debug-"
+        DOTNET_FLAGS="-unsafe -optimize- -debug- -sdk:4"
         if [ $BITS -eq 32 ]; then
             DOTNET_FLAGS="$DOTNET_FLAGS -platform:x86"
         else
@@ -407,6 +408,7 @@ case $OUTPUT_FORMAT in
 
         case $OUTPUT_FORMAT in
         dotnet)
+            echo mcs $DOTNET_FLAGS -out:$CURRENT_DIR/${BLOB%%.exe}.packed.$OUTPUT_EXTENSION $INSTALL_DIR/dotnet/*.cs $TMP_DIR/Global.cs
             mcs $DOTNET_FLAGS -out:$CURRENT_DIR/${BLOB%%.exe}.packed.$OUTPUT_EXTENSION $INSTALL_DIR/dotnet/*.cs $TMP_DIR/Global.cs
             ;;
         dotnet-pinvoke)
@@ -417,7 +419,5 @@ case $OUTPUT_FORMAT in
 
         ;;
 esac
-
-strip $CURRENT_DIR/${BLOB%%.exe}.packed.$OUTPUT_EXTENSION || exit 1
 
 echo -n '[!] Done! Check '; file $CURRENT_DIR/${BLOB%%.exe}.packed.$OUTPUT_EXTENSION

