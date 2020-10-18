@@ -119,12 +119,13 @@ namespace Injector {
             #endif
         }
 
+        #if SELFINJECT
         public struct Delegates {
             [SuppressUnmanagedCodeSecurity]
             [UnmanagedFunctionPointer(CallingConvention.Cdecl)]
             public delegate void FunctionRun();
         }
-
+        #endif
 
         #if PINVOKE
         private static UInt32 MEM_COMMIT = 0x1000;
@@ -168,7 +169,7 @@ namespace Injector {
             UInt32 dwMilliseconds
         );
 
-        [DllImport("kernel32.dll")]
+        [DllImport("kernel32")]
         static extern bool VirtualProtectEx(
             IntPtr hProcess,
             IntPtr lpAddress,
