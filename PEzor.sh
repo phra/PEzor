@@ -140,6 +140,7 @@ command -v $CXX >/dev/null 2>&1 || { echo >&2 "$CXX is missing from \$PATH. Chec
 command -v $CC >/dev/null 2>&1 || { echo >&2 "$CC is missing from \$PATH. Check https://github.com/tpoechtrager/wclang to learn how to install it"; exit 1; }
 command -v donut >/dev/null 2>&1 || { echo >&2 "donut is missing from \$PATH. Check https://github.com/TheWover/donut to learn how to install it"; exit 1; }
 command -v sgn >/dev/null 2>&1 || { echo >&2 "sgn is missing from \$PATH. Check https://github.com/EgeBalci/sgn to learn how to install it"; exit 1; }
+command -v mcs >/dev/null 2>&1 || { echo >&2 "mcs is missing from \$PATH. Re-run install.sh script"; exit 1; }
 
 # cleanup
 rm -f $TMP_DIR/*.{s,ll,cpp,donut,bin}
@@ -382,8 +383,8 @@ case $OUTPUT_FORMAT in
             SOURCES="$SOURCES $TMP_DIR/ApiSetMap.o $TMP_DIR/loader.o"
         fi
 
-        $CXX $CPPFLAGS $CXXFLAGS $INSTALL_DIR/*.cpp $TMP_DIR/{shellcode,sleep}.cpp $SOURCES -o $CURRENT_DIR/${BLOB%%.exe}.packed.$OUTPUT_EXTENSION &&
-        strip $CURRENT_DIR/${BLOB%%.exe}.packed.$OUTPUT_EXTENSION || exit 1
+        $CXX $CPPFLAGS $CXXFLAGS $INSTALL_DIR/*.cpp $TMP_DIR/{shellcode,sleep}.cpp $SOURCES -o BLOB.packed.$OUTPUT_EXTENSION &&
+        strip BLOB.packed.$OUTPUT_EXTENSION || exit 1
         ;;
     dotnet*)
         echo 'public static class Global {' >> $TMP_DIR/Global.cs &&
@@ -439,19 +440,19 @@ case $OUTPUT_FORMAT in
 
         case $OUTPUT_FORMAT in
         dotnet)
-            mcs $DOTNET_FLAGS -out:$CURRENT_DIR/$BLOB.packed.$OUTPUT_EXTENSION $INSTALL_DIR/dotnet/*.cs $TMP_DIR/Global.cs
+            mcs $DOTNET_FLAGS -out:$BLOB.packed.$OUTPUT_EXTENSION $INSTALL_DIR/dotnet/*.cs $TMP_DIR/Global.cs
             ;;
         dotnet-pinvoke)
             DOTNET_FLAGS="$DOTNET_FLAGS -define:PINVOKE"
-            mcs $DOTNET_FLAGS -out:$CURRENT_DIR/$BLOB.packed.$OUTPUT_EXTENSION $INSTALL_DIR/dotnet/Program.cs $TMP_DIR/Global.cs
+            mcs $DOTNET_FLAGS -out:$BLOB.packed.$OUTPUT_EXTENSION $INSTALL_DIR/dotnet/Program.cs $TMP_DIR/Global.cs
             ;;
         dotnet-createsection)
             DOTNET_FLAGS="$DOTNET_FLAGS -define:MAPVIEWOFSECTION"
-            mcs $DOTNET_FLAGS -out:$CURRENT_DIR/$BLOB.packed.$OUTPUT_EXTENSION $INSTALL_DIR/dotnet/*.cs $TMP_DIR/Global.cs
+            mcs $DOTNET_FLAGS -out:$BLOB.packed.$OUTPUT_EXTENSION $INSTALL_DIR/dotnet/*.cs $TMP_DIR/Global.cs
             ;;
         esac
 
         ;;
 esac
 
-echo -n '[!] Done! Check '; file $CURRENT_DIR/$BLOB.packed.$OUTPUT_EXTENSION
+echo -n '[!] Done! Check '; file $BLOB.packed.$OUTPUT_EXTENSION
