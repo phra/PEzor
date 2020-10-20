@@ -439,19 +439,19 @@ case $OUTPUT_FORMAT in
 
         case $OUTPUT_FORMAT in
         dotnet)
-            mcs $DOTNET_FLAGS -out:$CURRENT_DIR/${BLOB%%.exe}.packed.$OUTPUT_EXTENSION $INSTALL_DIR/dotnet/*.cs $TMP_DIR/Global.cs
+            mcs $DOTNET_FLAGS -out:$CURRENT_DIR/$BLOB.packed.$OUTPUT_EXTENSION $INSTALL_DIR/dotnet/*.cs $TMP_DIR/Global.cs
             ;;
         dotnet-pinvoke)
             DOTNET_FLAGS="$DOTNET_FLAGS -define:PINVOKE"
-            mcs $DOTNET_FLAGS -out:$CURRENT_DIR/${BLOB%%.exe}.packed.$OUTPUT_EXTENSION $INSTALL_DIR/dotnet/Program.cs $TMP_DIR/Global.cs
+            mcs $DOTNET_FLAGS -out:$CURRENT_DIR/$BLOB.packed.$OUTPUT_EXTENSION $INSTALL_DIR/dotnet/Program.cs $TMP_DIR/Global.cs
             ;;
         dotnet-createsection)
             DOTNET_FLAGS="$DOTNET_FLAGS -define:MAPVIEWOFSECTION"
-            mcs $DOTNET_FLAGS -out:$CURRENT_DIR/${BLOB%%.exe}.packed.$OUTPUT_EXTENSION $INSTALL_DIR/dotnet/*.cs $TMP_DIR/Global.cs
+            mcs $DOTNET_FLAGS -out:$CURRENT_DIR/$BLOB.packed.$OUTPUT_EXTENSION $INSTALL_DIR/dotnet/*.cs $TMP_DIR/Global.cs
             ;;
         esac
 
         ;;
 esac
 
-echo -n '[!] Done! Check '; file $CURRENT_DIR/${BLOB%%.exe}.packed.$OUTPUT_EXTENSION
+echo -n '[!] Done! Check '; file $CURRENT_DIR/$BLOB.packed.$OUTPUT_EXTENSION
