@@ -383,8 +383,8 @@ case $OUTPUT_FORMAT in
             SOURCES="$SOURCES $TMP_DIR/ApiSetMap.o $TMP_DIR/loader.o"
         fi
 
-        $CXX $CPPFLAGS $CXXFLAGS $INSTALL_DIR/*.cpp $TMP_DIR/{shellcode,sleep}.cpp $SOURCES -o BLOB.packed.$OUTPUT_EXTENSION &&
-        strip BLOB.packed.$OUTPUT_EXTENSION || exit 1
+        $CXX $CPPFLAGS $CXXFLAGS $INSTALL_DIR/*.cpp $TMP_DIR/{shellcode,sleep}.cpp $SOURCES -o $BLOB.packed.$OUTPUT_EXTENSION &&
+        strip $BLOB.packed.$OUTPUT_EXTENSION || exit 1
         ;;
     dotnet*)
         echo 'public static class Global {' >> $TMP_DIR/Global.cs &&
