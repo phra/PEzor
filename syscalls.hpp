@@ -1,7 +1,9 @@
 #ifndef _SYSCALLS_HPP_
 #define _SYSCALLS_HPP_
 #include <windows.h>
+#ifdef _DEBUG_
 #include <iostream>
+#endif
 #include <winternl.h>
 
 // Version
