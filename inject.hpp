@@ -2,7 +2,9 @@
 #define _INJECT_HPP_
 
 #include <windows.h>
+#ifdef _DEBUG_
 #include <iostream>
+#endif
 #include <unistd.h>
 #include "syscalls.hpp"
 

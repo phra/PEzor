@@ -2,7 +2,9 @@
 #define _HELLO_HPP_
 
 #include <windows.h>
+#ifdef _DEBUG_
 #include <iostream>
+#endif
 
 #include "inject.hpp"
 #include "shellcode.hpp"
