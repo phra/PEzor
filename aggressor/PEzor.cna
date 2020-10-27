@@ -166,12 +166,6 @@ sub execute_inmemory {
 
     #printAll(@argv);
 
-    if ("dotnet" isin $format) {
-        $extension = ".packed.dotnet.exe";
-    } else {
-        $extension = ".reflective.dll";
-    }
-
     # execute PEzor
     println("Executing PEzor");
     $handle = fork(&exec_async, \@argv);
