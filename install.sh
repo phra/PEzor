@@ -12,7 +12,8 @@ mkdir -p deps &&
 cd deps &&
 
 (ls inline_syscall 2>/dev/null 1>&2 || (
-    git clone --depth 1 https://github.com/JustasMasiulis/inline_syscall.git &&
+    git clone https://github.com/JustasMasiulis/inline_syscall.git &&
+    git checkout 24238544b510d8f85ca38de3a43bc41fa8cfe380 &&
     grep -v '#include <intrin.h>' $INSTALL_DIR/deps/inline_syscall/include/in_memory_init.hpp > $INSTALL_DIR/deps/inline_syscall/include/in_memory_init.hpp2 &&
     mv $INSTALL_DIR/deps/inline_syscall/include/in_memory_init.hpp2 $INSTALL_DIR/deps/inline_syscall/include/in_memory_init.hpp)
 ) &&
