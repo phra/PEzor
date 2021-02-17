@@ -1,0 +1,60 @@
+import java.util.UUID;
+
+sub exec_async {
+    local('$handle $error @output');
+    $handle = exec(@argv, $null);
+    @output = readAll($handle);
+    if (checkError($error)) {
+        warn("Could not execute @argv[0] $+ : $error");
+    }
+
+    closef($handle);
+    return @output;
+}
+
+sub copy_file {
+    write_file($2, read_file($1));
+}
+
+sub get_random_temp_filename {
+    local('$tmpdir $random');
+    $tmpdir = "/tmp/";
+    $random = [java.util.UUID randomUUID];
+    return $tmpdir . [$random toString];
+}
+
+sub get_random_filename {
+    local('$random');
+    $random = [java.util.UUID randomUUID];
+    return [$random toString];
+}
+
+sub get_random_filename_exe {
+    return get_random_filename() . ".exe";
+}
+
+sub copy_to_temp_file {
+    local('$executable $random $tmpfile $tmpdest');
+    # copy executable to tmp dir
+    $executable = $1;
+    $random = get_random_temp_filename();
+    $tmpfile = replace($1, '\/', "_");
+    $tmpdest = "$random $+ $tmpfile";
+    copy_file($executable, $tmpdest);
+    return $tmpdest;
+}
+
+sub read_file {
+    local('$handle $data');
+    $handle = openf($1);
+    $data = readb($handle, -1);
+    closef($handle);
+    return $data;
+}
+
+sub write_file {
+    local('$handle');
+    $handle = openf("> $+ $1");
+    writeb($handle, $2);
+    closef($handle);
+}

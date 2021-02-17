@@ -1,11 +1,15 @@
 PEzor
 =====
 
-Read the blog post here: [https://iwantmore.pizza/posts/PEzor.html](https://iwantmore.pizza/posts/PEzor.html)
+Read the blog posts here:
+
+- [https://iwantmore.pizza/posts/PEzor.html](https://iwantmore.pizza/posts/PEzor.html)
+- [https://iwantmore.pizza/posts/PEzor2.html](https://iwantmore.pizza/posts/PEzor2.html)
+- [https://iwantmore.pizza/posts/PEzor3.html](https://iwantmore.pizza/posts/PEzor3.html)
 
 ```raw
  ________________
-< PEzor!! v2.0.0 >
+< PEzor!! v2.1.0 >
  ----------------
       \                    / \  //\
        \    |\___/|      /   \//  \\

