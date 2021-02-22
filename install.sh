@@ -34,7 +34,7 @@ make install &&
 cd ../..)
 ) &&
 
-go get github.com/egebalci/sgn &&
+go get github.com/EgeBalci/sgn &&
 
 (ls wclang 2>/dev/null 1>&2 || (git clone --depth 1 https://github.com/tpoechtrager/wclang.git &&
 cd wclang &&
