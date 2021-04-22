@@ -283,10 +283,12 @@ case $OUTPUT_FORMAT in
         echo "unsigned int sleep_time = $SLEEP;" > $TMP_DIR/sleep.cpp
         if [ $IS_SHELLCODE = false ] && [ $SGN = false ]; then
             echo '[?] Executing donut' &&
-            (donut $BLOB -f 3 -o $TMP_DIR/shellcode.cpp.donut "$@" || exit 1) &&
+            (donut $BLOB -o $TMP_DIR/shellcode.bin.donut "$@" || exit 1) &&
             echo '#pragma clang diagnostic ignored "-Woverlength-strings"' >> $TMP_DIR/shellcode.cpp &&
             if [ $TEXT = true ]; then echo '__attribute__((section (".text")))' >> $TMP_DIR/shellcode.cpp; fi &&
-            cat $TMP_DIR/shellcode.cpp.donut >> $TMP_DIR/shellcode.cpp &&
+            echo -n 'unsigned char buf[] = "' >> $TMP_DIR/shellcode.cpp &&
+            od -vtx1 $TMP_DIR/shellcode.bin.donut | sed -e 's/^[0-9]* //' -e '$d' -e 's/^/ /' -e 's/ /\\x/g' | tr -d '\n' >> $TMP_DIR/shellcode.cpp &&
+            echo '";' >> $TMP_DIR/shellcode.cpp &&
             echo 'unsigned int buf_size = sizeof(buf);' >> $TMP_DIR/shellcode.cpp || exit 1
         else
             if [ $IS_SHELLCODE = false ]; then
