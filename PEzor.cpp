@@ -93,21 +93,38 @@ void CALLBACK StartW(HWND hwnd, HINSTANCE hinst, LPWSTR lpszCmdLine, int nCmdSho
 
 __declspec(dllexport)
 BOOL WINAPI DllMain(HINSTANCE hinstDLL, DWORD dwReason, LPVOID lpReserved ) {
-	switch (dwReason) {
+    switch (dwReason) {
         #ifdef REFLECTIVEDLLINJECTION_CUSTOM_DLLMAIN
-		case DLL_QUERY_HMODULE:
+        case DLL_QUERY_HMODULE:
+            #ifdef _DEBUG_
+                puts("DLL_QUERY_HMODULE");
+            #endif
 			if (lpReserved != NULL)
 				*(HMODULE *)lpReserved = hAppInstance;
-			break;
+		break;
         #endif
-		case DLL_PROCESS_ATTACH:
-        case DLL_THREAD_ATTACH:
+        case DLL_PROCESS_ATTACH:
+        #ifdef _DEBUG_
+            puts("DLL_PROCESS_ATTACH");
+        #endif
         #ifndef SERVICE_DLL
             _main(0, NULL);
         #endif
         break;
+        case DLL_THREAD_ATTACH:
+        #ifdef _DEBUG_
+            puts("DLL_THREAD_ATTACH");
+        #endif
+        break;
         case DLL_PROCESS_DETACH:
+        #ifdef _DEBUG_
+            puts("DLL_PROCESS_DETACH");
+        #endif
+        break;
         case DLL_THREAD_DETACH:
+        #ifdef _DEBUG_
+            puts("DLL_THREAD_DETACH");
+        #endif
         break;
     }
 
