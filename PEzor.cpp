@@ -99,8 +99,8 @@ BOOL WINAPI DllMain(HINSTANCE hinstDLL, DWORD dwReason, LPVOID lpReserved ) {
             #ifdef _DEBUG_
                 puts("DLL_QUERY_HMODULE");
             #endif
-			if (lpReserved != NULL)
-				*(HMODULE *)lpReserved = hAppInstance;
+            if (lpReserved != NULL)
+                *(HMODULE *)lpReserved = hAppInstance;
 		break;
         #endif
         case DLL_PROCESS_ATTACH:
