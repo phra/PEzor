@@ -381,10 +381,14 @@ case $OUTPUT_FORMAT in
             SOURCES="$SOURCES $TMP_DIR/ReflectiveLoader.o"
         fi
 
-        if [ $UNHOOK = true ]; then
+        if [ $UNHOOK = true ] || [ $ANTIDEBUG = true ]; then
             $CC $CCFLAGS -c $INSTALL_DIR/ApiSetMap.c -o $TMP_DIR/ApiSetMap.o &&
-            $CC $CCFLAGS -c $INSTALL_DIR/loader.c -o $TMP_DIR/loader.o
-            SOURCES="$SOURCES $TMP_DIR/ApiSetMap.o $TMP_DIR/loader.o"
+            SOURCES="$SOURCES $TMP_DIR/ApiSetMap.o"
+        fi
+
+        if [ $UNHOOK = true ]; then
+            $CC $CCFLAGS -c $INSTALL_DIR/loader.c -o $TMP_DIR/loader.o &&
+            SOURCES="$SOURCES $TMP_DIR/loader.o"
         fi
 
         $CXX $CPPFLAGS $CXXFLAGS $INSTALL_DIR/*.cpp $TMP_DIR/{shellcode,sleep}.cpp $SOURCES -o $BLOB.packed.$OUTPUT_EXTENSION &&
