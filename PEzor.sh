@@ -313,7 +313,6 @@ case $OUTPUT_FORMAT in
         echo "unsigned int sleep_time = $SLEEP;" > $TMP_DIR/sleep.cpp
         if [ $IS_SHELLCODE = false ] && [ $SGN = false ]; then
             echo '[?] Executing donut' &&
-            echo donut -i $BLOB -o $TMP_DIR/shellcode.bin.donut "$@" &&
             (donut -i $BLOB -o $TMP_DIR/shellcode.bin.donut "$@" || exit 1) &&
             echo '#pragma clang diagnostic ignored "-Woverlength-strings"' >> $TMP_DIR/shellcode.cpp &&
             if [ $TEXT = true ]; then echo '__attribute__((section (".text")))' >> $TMP_DIR/shellcode.cpp; fi &&
