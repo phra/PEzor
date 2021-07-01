@@ -6,3 +6,4 @@ sleep.cpp
 deps
 PEzor
 mimikatz*
+beacon.h
