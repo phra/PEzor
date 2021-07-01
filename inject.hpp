@@ -6,6 +6,7 @@
 #include <iostream>
 #endif
 #include <unistd.h>
+#include <synchapi.h>
 #include "syscalls.hpp"
 
 void my_init_syscalls_list(void);
