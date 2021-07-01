@@ -21,7 +21,7 @@ cd deps &&
 ) &&
 
 (ls donut 2>/dev/null 1>&2 || (git clone https://github.com/TheWover/donut.git && cd donut && git checkout b70467e &&
-make
+make )
 ) &&
 
 (ls keystone 2>/dev/null 1>&2 || (git clone --depth 1 https://github.com/keystone-engine/keystone.git &&
