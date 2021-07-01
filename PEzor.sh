@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 
-VERSION="2.1.0"
+VERSION="3.0.0"
 
 cowsay -f dragon 'PEzor!! v'$VERSION 2>/dev/null || echo 'PEzor!! v'$VERSION
 echo '---------------------------------------------------------------------------'
@@ -71,6 +71,8 @@ EXAMPLES
   $ PEzor.sh -unhook -antidebug -text -self -rx -sleep=120 mimikatz/x64/mimikatz.exe -z 2
   # 64-bit (raw syscalls)
   $ PEzor.sh -sgn -unhook -antidebug -text -syscalls -sleep=120 mimikatz/x64/mimikatz.exe -z 2
+  # 64-bit (beacon object file)
+  $ PEzor.sh -format=bof mimikatz/x64/mimikatz.exe -z 2 -p '"log c:\users\public\mimi.out" "token::whoami" "exit"'
   # 64-bit (reflective dll)
   $ PEzor.sh -format=reflective-dll mimikatz/x64/mimikatz.exe -z 2 -p '"log c:\users\public\mimi.out" "token::whoami" "exit"'
   # 64-bit (service exe)
@@ -117,6 +119,8 @@ EXAMPLES
   $ PEzor.sh -unhook -antidebug -text -self -sleep=120 shellcode.bin
   # 64-bit (raw syscalls)
   $ PEzor.sh -sgn -unhook -antidebug -text -syscalls -sleep=120 shellcode.bin
+  # 64-bit (beacon object file)
+  $ PEzor.sh -format=bof shellcode.bin
   # 64-bit (reflective dll)
   $ PEzor.sh -format=reflective-dll shellcode.bin
   # 64-bit (service exe)
