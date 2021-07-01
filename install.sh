@@ -20,8 +20,8 @@ cd deps &&
     mv $INSTALL_DIR/deps/inline_syscall/include/in_memory_init.hpp2 $INSTALL_DIR/deps/inline_syscall/include/in_memory_init.hpp)
 ) &&
 
-(ls donut_v0.9.3.tar.gz 2>/dev/null 1>&2 || (wget https://github.com/TheWover/donut/releases/download/v0.9.3/donut_v0.9.3.tar.gz &&
-tar xvf donut_v0.9.3.tar.gz)
+(ls donut 2>/dev/null 1>&2 || (git clone https://github.com/TheWover/donut.git && cd donut && git checkout b70467e &&
+make
 ) &&
 
 (ls keystone 2>/dev/null 1>&2 || (git clone --depth 1 https://github.com/keystone-engine/keystone.git &&
@@ -46,9 +46,11 @@ cd ..)
 
 cd .. &&
 
-(grep -q _prefix_PEzor_ ~/.bashrc || echo "export PATH=\$PATH:~/go/bin/:$INSTALL_DIR:$INSTALL_DIR/deps/donut_v0.9.3/:$INSTALL_DIR/deps/wclang/_prefix_PEzor_/bin/") >> ~/.bashrc &&
+wget https://www.cobaltstrike.com/downloads/beacon.h &&
 
-export PATH=$PATH:~/go/bin/:$INSTALL_DIR:$INSTALL_DIR/deps/donut_v0.9.3/:$INSTALL_DIR/deps/wclang/_prefix_PEzor_/bin/ &&
+(grep -q _prefix_PEzor_ ~/.bashrc || echo "export PATH=\$PATH:~/go/bin/:$INSTALL_DIR:$INSTALL_DIR/deps/donut/:$INSTALL_DIR/deps/wclang/_prefix_PEzor_/bin/") >> ~/.bashrc &&
+
+export PATH=$PATH:~/go/bin/:$INSTALL_DIR:$INSTALL_DIR/deps/donut/:$INSTALL_DIR/deps/wclang/_prefix_PEzor_/bin/ &&
 
 ln -fs $INSTALL_DIR/PEzor.sh $INSTALL_DIR/PEzor &&
 
@@ -60,4 +62,4 @@ cd $CURR_DIR &&
 
 echo '[!] installation complete' &&
 echo '[?] run the following command to update $PATH variable or restart your shell' &&
-echo "export PATH=\$PATH:~/go/bin/:$INSTALL_DIR:$INSTALL_DIR/deps/donut_v0.9.3/:$INSTALL_DIR/deps/wclang/_prefix_PEzor_/bin/"
+echo "export PATH=\$PATH:~/go/bin/:$INSTALL_DIR:$INSTALL_DIR/deps/donut/:$INSTALL_DIR/deps/wclang/_prefix_PEzor_/bin/"
