@@ -10,6 +10,7 @@
 
 #define BUFFER_SIZE 1024
 #define _WAIT_TIMEOUT 5000
+#define ARRAY_MODULES_SIZE 1024
 #define NT_FAIL(status) (status < 0)
 
 #pragma clang diagnostic ignored "-Wnested-anon-types"
@@ -106,6 +107,14 @@ extern "C" DECLSPEC_IMPORT WINBASEAPI BOOL     WINAPI  KERNEL32$PeekNamedPipe(
 );
 #define PeekNamedPipe KERNEL32$PeekNamedPipe
 
+extern "C" DECLSPEC_IMPORT BOOL WINAPI KERNEL32$EnumProcessModules(
+  HANDLE  hProcess,
+  HMODULE *lphModule,
+  DWORD   cb,
+  LPDWORD lpcbNeeded
+);
+#define EnumProcessModules KERNEL32$EnumProcessModules
+
 extern "C" DECLSPEC_IMPORT int      __cdecl  MSVCRT$_open_osfhandle(
    intptr_t osfhandle,
    int flags
@@ -187,6 +196,46 @@ void restore_io(int stdoutFd, int stderrFd, HANDLE stdoutHandle, HANDLE stderrHa
     SetStdHandle(STD_ERROR_HANDLE, stderrHandle);
 }
 
+BOOL isPresentInArray(HMODULE loadedModules[], HMODULE targetModule) {
+    for (unsigned int i = 0; i < ARRAY_MODULES_SIZE; i++) {
+        if (loadedModules[i] == targetModule) {
+            return TRUE;
+        }
+    }
+
+    return FALSE;
+}
+
+BOOL enumerateModulesAndCleanup(HMODULE loadedModules[], BOOL cleanup) {
+    HMODULE hMods[ARRAY_MODULES_SIZE * sizeof(HMODULE)];
+    DWORD cbNeeded = -1;
+    BOOL wasLibraryFreed = FALSE;
+
+    __stosb(hMods, 0, ARRAY_MODULES_SIZE * sizeof(HMODULE));
+
+    if (cleanup) {
+        if (EnumProcessModules((HANDLE)-1 /*GetCurrentProcess()*/, hMods, ARRAY_MODULES_SIZE * sizeof(HMODULE), &cbNeeded)) {
+            for (unsigned int i = 0; i < (cbNeeded / sizeof(HMODULE)); i++) {
+                /*
+                TCHAR szModName[MAX_PATH];
+
+                if (GetModuleFileNameEx( hProcess, hMods[i], szModName, sizeof(szModName) / sizeof(TCHAR))) {
+                    _tprintf( TEXT("\t%s (0x%08X)\n"), szModName, hMods[i] );
+                }
+                */
+               if (!isPresentInArray(loadedModules, hMods[i])) {
+                   FreeLibrary(hMods[i]);
+                   wasLibraryFreed = TRUE;
+               }
+            }
+        }
+    } else {
+        EnumProcessModules((HANDLE)-1 /*GetCurrentProcess()*/, loadedModules, ARRAY_MODULES_SIZE * sizeof(HMODULE), &cbNeeded);
+    }
+
+    return wasLibraryFreed;
+}
+
 BOOL CreateConsole() {
     if (!AllocConsole()) {
         // Add some error handling here.
@@ -239,6 +288,7 @@ int go(char * args, int alen) {
     DWORD bytesRead = 0;
     DWORD remainingDataOutput = 0;
     DWORD remainingDataError = 0;
+    HMODULE loadedModules[ARRAY_MODULES_SIZE * sizeof(HMODULE)];
 
     #ifdef SYSCALLS
     my_init_syscalls_list();
@@ -247,6 +297,9 @@ int go(char * args, int alen) {
     #ifdef _BOF_
     BeaconPrintf(CALLBACK_OUTPUT, "Starting BOF...");
     #endif
+
+    __stosb(loadedModules, 0, ARRAY_MODULES_SIZE * sizeof(HMODULE));
+    enumerateModulesAndCleanup(loadedModules, FALSE);
 
     stdoutHandle = GetStdHandle(STD_OUTPUT_HANDLE);
     stderrHandle = GetStdHandle(STD_ERROR_HANDLE);
@@ -377,6 +430,11 @@ int go(char * args, int alen) {
     CloseHandle(pipeReadOutput);
     CloseHandle(pipeWriteError);
     CloseHandle(pipeReadError);
+
+    if (enumerateModulesAndCleanup(&loadedModules, TRUE)) {
+        // some modules were freed
+
+    }
 
     //perror("before return\n");
     return 0;
