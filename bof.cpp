@@ -10,7 +10,7 @@
 
 #define BUFFER_SIZE 1024
 #define _WAIT_TIMEOUT 5000
-#define ARRAY_MODULES_SIZE 1024
+#define ARRAY_MODULES_SIZE 512
 #define NT_FAIL(status) (status < 0)
 
 #pragma clang diagnostic ignored "-Wnested-anon-types"
@@ -107,13 +107,13 @@ extern "C" DECLSPEC_IMPORT WINBASEAPI BOOL     WINAPI  KERNEL32$PeekNamedPipe(
 );
 #define PeekNamedPipe KERNEL32$PeekNamedPipe
 
-extern "C" DECLSPEC_IMPORT BOOL WINAPI KERNEL32$EnumProcessModules(
+extern "C" DECLSPEC_IMPORT WINBASEAPI BOOL WINAPI PSAPI$EnumProcessModules(
   HANDLE  hProcess,
   HMODULE *lphModule,
   DWORD   cb,
   LPDWORD lpcbNeeded
 );
-#define EnumProcessModules KERNEL32$EnumProcessModules
+#define EnumProcessModules PSAPI$EnumProcessModules
 
 extern "C" DECLSPEC_IMPORT int      __cdecl  MSVCRT$_open_osfhandle(
    intptr_t osfhandle,
@@ -211,26 +211,28 @@ BOOL enumerateModulesAndCleanup(HMODULE loadedModules[], BOOL cleanup) {
     DWORD cbNeeded = -1;
     BOOL wasLibraryFreed = FALSE;
 
-    __stosb(hMods, 0, ARRAY_MODULES_SIZE * sizeof(HMODULE));
+    //__stosb((unsigned char*)hMods, 0, ARRAY_MODULES_SIZE * sizeof(HMODULE));
 
     if (cleanup) {
-        if (EnumProcessModules((HANDLE)-1 /*GetCurrentProcess()*/, hMods, ARRAY_MODULES_SIZE * sizeof(HMODULE), &cbNeeded)) {
+        if (EnumProcessModules((HANDLE)-1, hMods, ARRAY_MODULES_SIZE * sizeof(HMODULE), &cbNeeded)) {
             for (unsigned int i = 0; i < (cbNeeded / sizeof(HMODULE)); i++) {
-                /*
-                TCHAR szModName[MAX_PATH];
+                //TCHAR szModName[MAX_PATH];
 
-                if (GetModuleFileNameEx( hProcess, hMods[i], szModName, sizeof(szModName) / sizeof(TCHAR))) {
-                    _tprintf( TEXT("\t%s (0x%08X)\n"), szModName, hMods[i] );
-                }
-                */
+                //if (GetModuleFileNameEx( hProcess, hMods[i], szModName, sizeof(szModName) / sizeof(TCHAR))) {
+                //    _tprintf( TEXT("\t%s (0x%08X)\n"), szModName, hMods[i] );
+                //}
+
                if (!isPresentInArray(loadedModules, hMods[i])) {
-                   FreeLibrary(hMods[i]);
-                   wasLibraryFreed = TRUE;
-               }
+                    #ifdef _BOF_
+                    BeaconPrintf(CALLBACK_OUTPUT, "Freeing module %p", hMods[i]);
+                    #endif
+                    FreeLibrary(hMods[i]);
+                    wasLibraryFreed = TRUE;
+                }
             }
         }
     } else {
-        EnumProcessModules((HANDLE)-1 /*GetCurrentProcess()*/, loadedModules, ARRAY_MODULES_SIZE * sizeof(HMODULE), &cbNeeded);
+        EnumProcessModules((HANDLE)-1, loadedModules, ARRAY_MODULES_SIZE * sizeof(HMODULE), &cbNeeded);
     }
 
     return wasLibraryFreed;
@@ -298,7 +300,7 @@ int go(char * args, int alen) {
     BeaconPrintf(CALLBACK_OUTPUT, "Starting BOF...");
     #endif
 
-    __stosb(loadedModules, 0, ARRAY_MODULES_SIZE * sizeof(HMODULE));
+    //__stosb((unsigned char*)loadedModules, 0, ARRAY_MODULES_SIZE * sizeof(HMODULE));
     enumerateModulesAndCleanup(loadedModules, FALSE);
 
     stdoutHandle = GetStdHandle(STD_OUTPUT_HANDLE);
@@ -365,7 +367,7 @@ int go(char * args, int alen) {
         //fprintf(stderr, "[DEBUG] remainingDataOutput = %d\n", remainingDataOutput);
         if (remainingDataOutput) {
             SetLastError(0);
-            __stosb(recvBuffer, 0, BUFFER_SIZE);
+            __stosb((unsigned char*)(void*)recvBuffer, 0, BUFFER_SIZE);
             bytesRead = 0;
             readResult = ReadFile(
                 pipeReadOutput,        // pipe handle
@@ -431,10 +433,17 @@ int go(char * args, int alen) {
     CloseHandle(pipeWriteError);
     CloseHandle(pipeReadError);
 
-    if (enumerateModulesAndCleanup(&loadedModules, TRUE)) {
+    /*
+    if (enumerateModulesAndCleanup(loadedModules, TRUE)) {
         // some modules were freed
-
-    }
+        #ifdef _BOF_
+        BeaconPrintf(CALLBACK_OUTPUT, "Cleanup complete");
+        #endif
+    } else {
+        #ifdef _BOF_
+        BeaconPrintf(CALLBACK_OUTPUT, "No cleanup needed");
+        #endif
+    }*/
 
     //perror("before return\n");
     return 0;

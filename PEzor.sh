@@ -433,7 +433,7 @@ case $OUTPUT_FORMAT in
             cp $INSTALL_DIR/{sleep,inject,syscalls}.hpp $INSTALL_DIR/beacon.h $TMP_DIR &&
             mkdir -p $TMP_DIR/deps/inline_syscall/include &&
             cp $INSTALL_DIR/deps/inline_syscall/include/* $TMP_DIR/deps/inline_syscall/include &&
-            $CXX $CPPFLAGS $CXXFLAGS $TMP_DIR/bof.cpp -c -o $BLOB.packed.$OUTPUT_EXTENSION
+            $CXX -mno-stack-arg-probe $CPPFLAGS $CXXFLAGS $TMP_DIR/bof.cpp -c -o $BLOB.packed.$OUTPUT_EXTENSION || exit 1
             # x86_64-w64-mingw32-ld -r $TMP_DIR/{sleep,bof,inject}.o -o $BLOB.packed.$OUTPUT_EXTENSION
         else
             $CXX $CPPFLAGS $CXXFLAGS $INSTALL_DIR/{inject,PEzor}.cpp $TMP_DIR/{shellcode,sleep}.cpp $SOURCES -o $BLOB.packed.$OUTPUT_EXTENSION &&
