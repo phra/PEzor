@@ -37,6 +37,7 @@ CXX=x86_64-w64-mingw32-clang++
 LD=x86_64-w64-mingw32-ld
 OUTPUT_FORMAT=exe
 OUTPUT_EXTENSION=exe
+CLEANUP=false
 SOURCES=""
 
 usage() {
@@ -60,6 +61,7 @@ OPTIONS
   -rx                       Allocate RX memory for shellcode
   -self                     Execute the shellcode in the same thread
   -sdk=VERSION              Use specified .NET Framework version (2, 4, 4.5 (default))
+  -cleanup                  Perform the cleanup of allocated payload and loaded modules (only for BOFs)
   -sleep=N                  Sleeps for N seconds before unpacking the shellcode
   -format=FORMAT            Outputs result in specified FORMAT (exe, dll, reflective-dll, service-exe, service-dll, dotnet, dotnet-createsection, dotnet-pinvoke)
   [donut args...]           After the executable to pack, you can pass additional Donut args, such as -z 2
@@ -73,6 +75,8 @@ EXAMPLES
   $ PEzor.sh -sgn -unhook -antidebug -text -syscalls -sleep=120 mimikatz/x64/mimikatz.exe -z 2
   # 64-bit (beacon object file)
   $ PEzor.sh -format=bof mimikatz/x64/mimikatz.exe -z 2 -p '"log c:\users\public\mimi.out" "token::whoami" "exit"'
+  # 64-bit (beacon object file w/ cleanup)
+  $ PEzor.sh -format=bof -cleanup mimikatz/x64/mimikatz.exe -z 2 -p '"log c:\users\public\mimi.out" "token::whoami" "exit"'
   # 64-bit (reflective dll)
   $ PEzor.sh -format=reflective-dll mimikatz/x64/mimikatz.exe -z 2 -p '"log c:\users\public\mimi.out" "token::whoami" "exit"'
   # 64-bit (service exe)
@@ -107,6 +111,7 @@ OPTIONS
   -text                     Store shellcode in .text section instead of .data
   -rx                       Allocate RX memory for shellcode
   -self                     Execute the shellcode in the same thread [requires RX shellcode, not compatible with -sgn]
+  -cleanup                  Perform the cleanup of allocated payload and loaded modules (only for BOFs)
   -sleep=N                  Sleeps for N seconds before unpacking the shellcode
   -format=FORMAT            Outputs result in specified FORMAT (exe, dll, reflective-dll, service-exe, service-dll, dotnet, dotnet-createsection, dotnet-pinvoke)
 
@@ -197,6 +202,10 @@ do
             ;;
         -shellcode)
             IS_SHELLCODE=true
+            echo "[?] Forcing shellcode detection"
+            ;;
+        -cleanup)
+            CLEANUP=true
             echo "[?] Forcing shellcode detection"
             ;;
         -sleep=*)
@@ -390,6 +399,11 @@ case $OUTPUT_FORMAT in
         if [ $TEXT = true ]; then
             CCFLAGS="$CCFLAGS -D_TEXT_"
             CPPFLAGS="$CPPFLAGS -D_TEXT_"
+        fi
+
+        if [ $CLEANUP = true ]; then
+            CCFLAGS="$CCFLAGS -D_CLEANUP_"
+            CPPFLAGS="$CPPFLAGS -D_CLEANUP_"
         fi
 
         if [ $OUTPUT_FORMAT = "dll" ]; then

