@@ -230,7 +230,13 @@ BOOL cleanupModules(HMODULE loadedModules[]) {
 
     if (EnumProcessModules((HANDLE)-1, hMods, ARRAY_MODULES_SIZE * sizeof(HMODULE), &cbNeeded)) {
         for (unsigned int i = 0; i < (cbNeeded / sizeof(HMODULE)); i++) {
+            #ifdef _BOF_
+            BeaconPrintf(CALLBACK_OUTPUT, "[PEzor] Checking library %d", i);
+            #endif
             if (!isPresentInArray(loadedModules, hMods[i])) {
+                #ifdef _BOF_
+                BeaconPrintf(CALLBACK_OUTPUT, "[PEzor] Freeing library %d", i);
+                #endif
                 FreeLibrary(hMods[i]);
                 wasLibraryFreed = TRUE;
             }
@@ -245,7 +251,7 @@ BOOL cleanupModules2(unsigned int numberOfLoadedModules) {
     DWORD cbNeeded = -1;
     BOOL wasLibraryFreed = FALSE;
 
-    numberOfLoadedModules -= 9; // numbers of modules loaded by the bof itself
+    //numberOfLoadedModules -= 9; // numbers of modules loaded by the bof itself
 
     __stosb((unsigned char*)hMods, 0, ARRAY_MODULES_SIZE * sizeof(HMODULE));
 
