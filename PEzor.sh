@@ -126,6 +126,8 @@ EXAMPLES
   $ PEzor.sh -sgn -unhook -antidebug -text -syscalls -sleep=120 shellcode.bin
   # 64-bit (beacon object file)
   $ PEzor.sh -format=bof shellcode.bin
+  # 64-bit (beacon object file w/ cleanup)
+  $ PEzor.sh -format=bof -cleanup shellcode.bin
   # 64-bit (reflective dll)
   $ PEzor.sh -format=reflective-dll shellcode.bin
   # 64-bit (service exe)
