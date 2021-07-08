@@ -6,10 +6,11 @@ Read the blog posts here:
 - [https://iwantmore.pizza/posts/PEzor.html](https://iwantmore.pizza/posts/PEzor.html)
 - [https://iwantmore.pizza/posts/PEzor2.html](https://iwantmore.pizza/posts/PEzor2.html)
 - [https://iwantmore.pizza/posts/PEzor3.html](https://iwantmore.pizza/posts/PEzor3.html)
+- [https://iwantmore.pizza/posts/PEzor4.html](https://iwantmore.pizza/posts/PEzor4.html)
 
 ```raw
  ________________
-< PEzor!! v2.1.0 >
+< PEzor!! v3.0.0 >
  ----------------
       \                    / \  //\
        \    |\___/|      /   \//  \\
@@ -44,6 +45,11 @@ $ cd PEzor
 $ sudo bash install.sh
 $ bash PEzor.sh -h
 ```
+
+# Upgrading from v2.x.x
+
+The `PATH` variable has to be updated to use a specific commit of [Donut](https://github.com/TheWover/donut)! Check the updated `install.sh` script.
+
 <!-- installstop -->
 
 <!-- usage -->
@@ -94,11 +100,15 @@ OPTIONS
 
 EXAMPLES
   # 64-bit (self-inject RWX)
-  $ PEzor.sh -unhook -antidebug -text -self -sleep=120 mimikatz/x64/mimikatz.exe -z 2
+  $ PEzor.sh -unhook -antidebug -text -self -sleep=120 mimikatz/x64/mimikatz.exe -z 2 -p '"log c:\users\public\mimi.out" "token::whoami" "exit"'
   # 64-bit (self-inject RX)
-  $ PEzor.sh -unhook -antidebug -text -self -rx -sleep=120 mimikatz/x64/mimikatz.exe -z 2
+  $ PEzor.sh -unhook -antidebug -text -self -rx -sleep=120 mimikatz/x64/mimikatz.exe -z 2 -p '"log c:\users\public\mimi.out" "token::whoami" "exit"'
   # 64-bit (raw syscalls)
-  $ PEzor.sh -sgn -unhook -antidebug -text -syscalls -sleep=120 mimikatz/x64/mimikatz.exe -z 2
+  $ PEzor.sh -sgn -unhook -antidebug -text -syscalls -sleep=120 mimikatz/x64/mimikatz.exe -z 2 -p '"log c:\users\public\mimi.out" "token::whoami" "exit"'
+  # 64-bit (beacon object file)
+  $ PEzor.sh -format=bof mimikatz/x64/mimikatz.exe -z 2 -p '"log c:\users\public\mimi.out" "token::whoami" "exit"'
+  # 64-bit (beacon object file w/ cleanup)
+  $ PEzor.sh -format=bof -cleanup mimikatz/x64/mimikatz.exe -z 2 -p '"log c:\users\public\mimi.out" "token::whoami" "exit"'
   # 64-bit (reflective dll)
   $ PEzor.sh -format=reflective-dll mimikatz/x64/mimikatz.exe -z 2 -p '"log c:\users\public\mimi.out" "token::whoami" "exit"'
   # 64-bit (service exe)
@@ -153,6 +163,10 @@ EXAMPLES
   $ PEzor.sh -unhook -antidebug -text -self -sleep=120 shellcode.bin
   # 64-bit (raw syscalls)
   $ PEzor.sh -sgn -unhook -antidebug -text -syscalls -sleep=120 shellcode.bin
+  # 64-bit (beacon object file)
+  $ PEzor.sh -format=bof shellcode.bin
+  # 64-bit (beacon object file w/ cleanup)
+  $ PEzor.sh -format=bof -cleanup shellcode.bin
   # 64-bit (reflective dll)
   $ PEzor.sh -format=reflective-dll shellcode.bin
   # 64-bit (service exe)
