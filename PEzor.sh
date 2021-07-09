@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 
-VERSION="3.0.2"
+VERSION="3.0.3"
 
 cowsay -f dragon 'PEzor!! v'$VERSION 2>/dev/null || echo 'PEzor!! v'$VERSION
 echo '---------------------------------------------------------------------------'

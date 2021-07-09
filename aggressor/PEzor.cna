@@ -15,7 +15,7 @@ alias generate-payload {
 }
 
 sub execute_PEzor {
-    local('$command $match $type $executable $sgn $rx $self $debug $32 $64 $sdk $index $unhook $syscalls $cleanup $antidebug $sleep $wait $format $length $end $opts $args $otheropts @argv $tmpdest $handle @output $packed');
+    local('$command $match $shellcode $type $executable $sgn $rx $self $debug $32 $64 $sdk $index $unhook $syscalls $cleanup $antidebug $sleep $wait $format $length $end $opts $args $otheropts @argv $tmpdest $handle @output $packed');
     $command = $1;
 
     # manually parse args
@@ -66,6 +66,10 @@ sub execute_PEzor {
     find($command, '(\-cleanup)');
     ($match, $type) = matched();
     $cleanup = copy($match);
+
+    find($command, '(\-shellcode)');
+    ($match, $type) = matched();
+    $shellcode = copy($match);
 
     find($command, '\-sleep=(\d*)');
     ($match, $type) = matched();
@@ -149,6 +153,10 @@ sub execute_PEzor {
         push(@argv, $cleanup);
     }
 
+    if ($shellcode ne "") {
+        push(@argv, $shellcode);
+    }
+
     if ($sleep ne "") {
         push(@argv, "-sleep= $+ $sleep");
     }
@@ -157,7 +165,7 @@ sub execute_PEzor {
         push(@argv, "-format= $+ $format");
     }
 
-    push(@argv, $tmpdest);
+    push(@argv, "-i $tmpdest");
 
     if ($args ne "") {
         push(@argv, "-p");
