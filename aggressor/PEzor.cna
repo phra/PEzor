@@ -165,7 +165,7 @@ sub execute_PEzor {
         push(@argv, "-format= $+ $format");
     }
 
-    push(@argv, "-i $tmpdest");
+    push(@argv, $tmpdest);
 
     if ($args ne "") {
         push(@argv, "-p");
