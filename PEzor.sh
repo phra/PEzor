@@ -462,7 +462,7 @@ case $OUTPUT_FORMAT in
         echo -n 'public static ' >> $TMP_DIR/Global.cs
         if [ $IS_SHELLCODE = false ] && [ $SGN = false ]; then
             echo '[?] Executing donut' &&
-            (donut $BLOB -f 7 -o $TMP_DIR/shellcode.cs "$@" || exit 1) &&
+            (donut -i $BLOB -f 7 -o $TMP_DIR/shellcode.cs "$@" || exit 1) &&
             cat $TMP_DIR/shellcode.cs >> $TMP_DIR/Global.cs
         else
             if [ $IS_SHELLCODE = false ]; then
