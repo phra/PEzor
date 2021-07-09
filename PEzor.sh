@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 
-VERSION="3.0.1"
+VERSION="3.0.2"
 
 cowsay -f dragon 'PEzor!! v'$VERSION 2>/dev/null || echo 'PEzor!! v'$VERSION
 echo '---------------------------------------------------------------------------'
@@ -8,6 +8,7 @@ echo 'Read the blog posts here:'
 echo 'https://iwantmore.pizza/posts/PEzor.html'
 echo 'https://iwantmore.pizza/posts/PEzor2.html'
 echo 'https://iwantmore.pizza/posts/PEzor3.html'
+echo 'https://iwantmore.pizza/posts/PEzor4.html'
 echo 'Based on:'
 echo 'https://github.com/TheWover/donut'
 echo 'https://github.com/EgeBalci/sgn'
