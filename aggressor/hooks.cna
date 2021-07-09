@@ -17,7 +17,7 @@ set EXECUTABLE_ARTIFACT_GENERATOR {
 
 	$tmpfile = get_random_temp_filename();
 	write_file($tmpfile, $payload);
-	$opts = "-sgn -unhook";
+	$opts = "-shellcode -sgn -unhook";
 
 	#if (-hasbootstraphint $payload) {
 	#	throw "'smartinject = true' is not supported!";
