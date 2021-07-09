@@ -468,7 +468,7 @@ case $OUTPUT_FORMAT in
         else
             if [ $IS_SHELLCODE = false ]; then
                 echo '[?] Executing donut' &&
-                (donut $BLOB -o $TMP_DIR/shellcode.bin.donut "$@" || exit 1)
+                (donut -i $BLOB -o $TMP_DIR/shellcode.bin.donut "$@" || exit 1)
             else
                 cp $BLOB $TMP_DIR/shellcode.bin.donut
             fi
