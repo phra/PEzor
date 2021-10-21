@@ -241,7 +241,7 @@ do
     esac
 done
 
-if [ ! $IS_SHELLCODE ]; then
+if [ $IS_SHELLCODE = false ]; then
     file $BLOB | grep -q ': data' && { IS_SHELLCODE=true; }
     file $BLOB | grep -q ': DOS executable (COM)' && { IS_SHELLCODE=true; } # false positive
 fi
