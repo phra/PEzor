@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 
-VERSION="3.0.3"
+VERSION="3.0.4"
 
 cowsay -f dragon 'PEzor!! v'$VERSION 2>/dev/null || echo 'PEzor!! v'$VERSION
 echo '---------------------------------------------------------------------------'
@@ -355,8 +355,14 @@ case $OUTPUT_FORMAT in
             echo 'unsigned int buf_size = sizeof(buf);' >> $TMP_DIR/shellcode.cpp || exit 1
         fi
 
-        CCFLAGS="-O3 -Wl,-strip-all -Wall -pedantic"
-        CPPFLAGS="-O3 -Wl,-strip-all -Wall -pedantic"
+        if [[ ( $OUTPUT_FORMAT = "exe" || $OUTPUT_FORMAT = "service-exe" ) && $DEBUG = false ]]; then
+            CCFLAGS="-O3 -Wl,-strip-all,-subsystem=windows -Wall -pedantic"
+            CPPFLAGS="-O3 -Wl,-strip-all,-subsystem=windows -Wall -pedantic"
+        else
+            CCFLAGS="-O3 -Wl,-strip-all, -Wall -pedantic"
+            CPPFLAGS="-O3 -Wl,-strip-all, -Wall -pedantic"
+        fi
+
         CXXFLAGS="-std=c++17 -static"
 
         if [ $BITS -eq 32 ]; then
