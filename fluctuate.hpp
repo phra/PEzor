@@ -5,6 +5,9 @@
 #include <memoryapi.h>
 #include <cstdlib>
 #include <ctime>
+#ifdef _DEBUG_
+#include <iostream>
+#endif
 
 void fluctuate();
 

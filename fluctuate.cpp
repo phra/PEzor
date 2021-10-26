@@ -4,11 +4,6 @@ unsigned char originalBytes[16] = { 0 };
 unsigned int originalProtection = 0;
 unsigned int XOR_KEY = 0;
 
-unsigned int generate_random_int() {
-    std::srand(std::time(nullptr));
-    return std::rand() | std::rand() << 16;
-}
-
 #ifdef _DEBUG_
 // https://gist.github.com/ccbrown/9722406
 void DumpHex(const void* data, size_t size) {
@@ -72,6 +67,11 @@ void print_type(DWORD type) {
         wprintf(L"print_type: 0x%p is MEM_PRIVATE\n");
 }
 #endif
+
+unsigned int generate_random_int() {
+    std::srand(std::time(nullptr));
+    return std::rand() | std::rand() << 16;
+}
 
 void xor32(void* address, unsigned int size, unsigned int key) {
     #ifdef _DEBUG_
@@ -173,7 +173,7 @@ void xor_region_and_change_protection(void* address, unsigned int key, DWORD new
         }
     }
 
-    FlushInstructionCache(GetCurrentProcess(), allocation_base, region_size);
+    FlushInstructionCache((HANDLE)-1, allocation_base, region_size);
     xor32(allocation_base, region_size, key);
 
     if (!VirtualProtect(allocation_base, region_size, newProtection, &oldProt)) {
@@ -184,7 +184,7 @@ void xor_region_and_change_protection(void* address, unsigned int key, DWORD new
         ExitProcess(-1);
     }
 
-    FlushInstructionCache(GetCurrentProcess(), allocation_base, region_size);
+    FlushInstructionCache((HANDLE)-1, allocation_base, region_size);
 }
 
 void inline_hook_function(BOOL enable, char* addressToHook, void* jumpAddress) {
@@ -222,7 +222,7 @@ void inline_hook_function(BOOL enable, char* addressToHook, void* jumpAddress) {
         ExitProcess(-1);
     }
 
-    FlushInstructionCache(GetCurrentProcess(), addressToHook, trampolineLength);
+    FlushInstructionCache((HANDLE)-1, addressToHook, trampolineLength);
 
     if (!VirtualProtect(addressToHook, trampolineLength, oldProt, &oldProt)) {
         #ifdef _DEBUG_
