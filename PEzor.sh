@@ -46,7 +46,7 @@ usage() {
     echo 'Usage PE:        ./PEzor.sh [-32|-64] [-debug] [-syscalls] [-unhook] [-sleep=<SECONDS>] [-sgn] [-antidebug] [-text] [-self] [-rx] [-format=<FORMAT>] <executable.exe> [donut args]'
     echo 'Usage Shellcode: ./PEzor.sh [-32|-64] [-debug] [-syscalls] [-unhook] [-sleep=<SECONDS>] [-sgn] [-antidebug] [-text] [-self] [-rx] [-format=<FORMAT>] <shellcode.bin>'
     echo ''
-    echo 'USAGE
+    echo "USAGE
 
 # PEzor [options...] <EXECUTABLE> [donut args...]
 
@@ -77,31 +77,31 @@ EXAMPLES
   # 64-bit (raw syscalls)
   $ PEzor.sh -sgn -unhook -antidebug -text -syscalls -sleep=120 mimikatz/x64/mimikatz.exe -z 2
   # 64-bit (fluctuate to READWRITE when sleeping)
-  $ PEzor.sh -fluctuate=RW -sleep=120 mimikatz/x64/mimikatz.exe -z 2 -p '"coffee" "sleep 5000" "coffee" "exit"'
+  $ PEzor.sh -fluctuate=RW -sleep=120 mimikatz/x64/mimikatz.exe -z 2 -p '\"coffee\" \"sleep 5000\" \"coffee\" \"exit\"'
   # 64-bit (fluctuate to NOACCESS when sleeping)
-  $ PEzor.sh -fluctuate=NA -sleep=120 mimikatz/x64/mimikatz.exe -z 2 -p '"coffee" "sleep 5000" "coffee" "exit"'
+  $ PEzor.sh -fluctuate=NA -sleep=120 mimikatz/x64/mimikatz.exe -z 2 -p '\"coffee\" \"sleep 5000\" \"coffee\" \"exit\"'
   # 64-bit (beacon object file)
-  $ PEzor.sh -format=bof mimikatz/x64/mimikatz.exe -z 2 -p '"log c:\users\public\mimi.out" "token::whoami" "exit"'
+  $ PEzor.sh -format=bof mimikatz/x64/mimikatz.exe -z 2 -p '\"log c:\users\public\mimi.out\" \"token::whoami\" \"exit\"'
   # 64-bit (beacon object file w/ cleanup)
-  $ PEzor.sh -format=bof -cleanup mimikatz/x64/mimikatz.exe -z 2 -p '"log c:\users\public\mimi.out" "token::whoami" "exit"'
+  $ PEzor.sh -format=bof -cleanup mimikatz/x64/mimikatz.exe -z 2 -p '\"log c:\users\public\mimi.out\" \"token::whoami\" \"exit\"'
   # 64-bit (reflective dll)
-  $ PEzor.sh -format=reflective-dll mimikatz/x64/mimikatz.exe -z 2 -p '"log c:\users\public\mimi.out" "token::whoami" "exit"'
+  $ PEzor.sh -format=reflective-dll mimikatz/x64/mimikatz.exe -z 2 -p '\"log c:\users\public\mimi.out\" \"token::whoami\" \"exit\"'
   # 64-bit (service exe)
-  $ PEzor.sh -format=service-exe mimikatz/x64/mimikatz.exe -z 2 -p '"log c:\users\public\mimi.out" "token::whoami" "exit"'
+  $ PEzor.sh -format=service-exe mimikatz/x64/mimikatz.exe -z 2 -p '\"log c:\users\public\mimi.out\" \"token::whoami\" \"exit\"'
   # 64-bit (service dll)
-  $ PEzor.sh -format=service-dll mimikatz/x64/mimikatz.exe -z 2 -p '"log c:\users\public\mimi.out" "token::whoami" "exit"'
+  $ PEzor.sh -format=service-dll mimikatz/x64/mimikatz.exe -z 2 -p '\"log c:\users\public\mimi.out\" \"token::whoami\" \"exit\"'
   # 64-bit (dotnet)
-  $ PEzor.sh -format=dotnet -sleep=120 mimikatz/x64/mimikatz.exe -z 2 -p '"log c:\users\public\mimi.out" "token::whoami" "exit"'
+  $ PEzor.sh -format=dotnet -sleep=120 mimikatz/x64/mimikatz.exe -z 2 -p '\"log c:\users\public\mimi.out\" \"token::whoami\" \"exit\"'
   # 64-bit (dotnet-pinvoke)
-  $ PEzor.sh -format=dotnet-pinvoke -sleep=120 mimikatz/x64/mimikatz.exe -z 2 -p '"log c:\users\public\mimi.out" "token::whoami" "exit"'
+  $ PEzor.sh -format=dotnet-pinvoke -sleep=120 mimikatz/x64/mimikatz.exe -z 2 -p '\"log c:\users\public\mimi.out\" \"token::whoami\" \"exit\"'
   # 64-bit (dotnet-createsection)
-  $ PEzor.sh -format=dotnet-createsection -sleep=120 mimikatz/x64/mimikatz.exe -z 2 -p '"log c:\users\public\mimi.out" "token::whoami" "exit"'
+  $ PEzor.sh -format=dotnet-createsection -sleep=120 mimikatz/x64/mimikatz.exe -z 2 -p '\"log c:\users\public\mimi.out\" \"token::whoami\" \"exit\"'
   # 32-bit (self-inject)
   $ PEzor.sh -unhook -antidebug -text -self -sleep=120 mimikatz/Win32/mimikatz.exe -z 2
   # 32-bit (Win32 API: VirtualAlloc/WriteMemoryProcess/CreateRemoteThread)
   $ PEzor.sh -sgn -unhook -antidebug -text -sleep=120 mimikatz/Win32/mimikatz.exe -z 2
   # 32-bit (Win32 API: VirtualAlloc/WriteMemoryProcess/CreateRemoteThread) and arguments for donut
-  $ PEzor.sh -sgn -unhook -antidebug -text -sleep=120 mimikatz/Win32/mimikatz.exe -z 2 "-plsadump::sam /system:SystemBkup.hiv /sam:SamBkup.hiv"
+  $ PEzor.sh -sgn -unhook -antidebug -text -sleep=120 mimikatz/Win32/mimikatz.exe -z 2 \"-plsadump::sam /system:SystemBkup.hiv /sam:SamBkup.hiv\"
 
 # PEzor <-32|-64> [options...] <SHELLCODE>
 
@@ -155,7 +155,7 @@ EXAMPLES
   # 32-bit (self-inject)
   $ PEzor.sh -unhook -antidebug -text -self -sleep=120 shellcode.bin
   # 32-bit (Win32 API: VirtualAlloc/WriteMemoryProcess/CreateRemoteThread)
-  $ PEzor.sh -sgn -unhook -antidebug -text -sleep=120 shellcode.bin'
+  $ PEzor.sh -sgn -unhook -antidebug -text -sleep=120 shellcode.bin"
 }
 
 if [ $# -eq 0 ]; then
