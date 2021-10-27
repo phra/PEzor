@@ -18,7 +18,7 @@ echo '--------------------------------------------------------------------------
 
 CURRENT_DIR=`pwd`
 INSTALL_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-TMP_DIR=/tmp
+TMP_DIR=`mktemp -d`
 SGN=false
 BLOB=false
 IS_SHELLCODE=false
@@ -168,9 +168,6 @@ command -v $CC >/dev/null 2>&1 || { echo >&2 "$CC is missing from \$PATH. Check 
 command -v donut >/dev/null 2>&1 || { echo >&2 "donut is missing from \$PATH. Check https://github.com/TheWover/donut to learn how to install it"; exit 1; }
 command -v sgn >/dev/null 2>&1 || { echo >&2 "sgn is missing from \$PATH. Check https://github.com/EgeBalci/sgn to learn how to install it"; exit 1; }
 command -v mcs >/dev/null 2>&1 || { echo >&2 "mcs is missing from \$PATH. Re-run install.sh script"; exit 1; }
-
-# cleanup
-rm -f $TMP_DIR/*.{s,ll,cpp,donut,bin}
 
 for arg in "$@"
 do
@@ -559,4 +556,5 @@ case $OUTPUT_FORMAT in
         ;;
 esac
 
+rm -rf $TMP_DIR &&
 echo -n '[!] Done! Check '; file $BLOB.packed.$OUTPUT_EXTENSION
