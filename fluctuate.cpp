@@ -37,34 +37,34 @@ void DumpHex(const void* data, size_t size) {
 
 void print_protection(void* address, DWORD protections) {
     if (protections & PAGE_READONLY)
-        wprintf(L"print_protection: 0x%p is PAGE_READONLY\n");
+        wprintf(L"print_protection: 0x%p is PAGE_READONLY\n", address);
     if (protections & PAGE_READWRITE)
-        wprintf(L"print_protection: 0x%p is PAGE_READWRITE\n");
+        wprintf(L"print_protection: 0x%p is PAGE_READWRITE\n", address);
     if (protections & PAGE_NOACCESS)
-        wprintf(L"print_protection: 0x%p is PAGE_NOACCESS\n");
+        wprintf(L"print_protection: 0x%p is PAGE_NOACCESS\n", address);
     if (protections & PAGE_WRITECOPY)
-        wprintf(L"print_protection: 0x%p is PAGE_WRITECOPY\n");
+        wprintf(L"print_protection: 0x%p is PAGE_WRITECOPY\n", address);
     if (protections & PAGE_EXECUTE)
-        wprintf(L"print_protection: 0x%p is PAGE_EXECUTE\n");
+        wprintf(L"print_protection: 0x%p is PAGE_EXECUTE\n", address);
     if (protections & PAGE_EXECUTE_READ)
-        wprintf(L"print_protection: 0x%p is PAGE_EXECUTE_READ\n");
+        wprintf(L"print_protection: 0x%p is PAGE_EXECUTE_READ\n", address);
     if (protections & PAGE_EXECUTE_READWRITE)
-        wprintf(L"print_protection: 0x%p is PAGE_EXECUTE_READWRITE\n");
+        wprintf(L"print_protection: 0x%p is PAGE_EXECUTE_READWRITE\n", address);
     if (protections & PAGE_EXECUTE_WRITECOPY)
-        wprintf(L"print_protection: 0x%p is PAGE_EXECUTE_WRITECOPY\n");
+        wprintf(L"print_protection: 0x%p is PAGE_EXECUTE_WRITECOPY\n", address);
     if (protections & PAGE_GUARD)
-        wprintf(L"print_protection: 0x%p is PAGE_GUARD\n");
+        wprintf(L"print_protection: 0x%p is PAGE_GUARD\n", address);
     if (protections & PAGE_NOCACHE)
-        wprintf(L"print_protection: 0x%p is PAGE_NOCACHE\n");
+        wprintf(L"print_protection: 0x%p is PAGE_NOCACHE\n", address);
 }
 
 void print_type(void* address, DWORD type) {
     if (type & MEM_IMAGE)
-        wprintf(L"print_type: 0x%p is MEM_IMAGE\n");
+        wprintf(L"print_type: 0x%p is MEM_IMAGE\n", address);
     if (type & MEM_MAPPED)
-        wprintf(L"print_type: 0x%p is MEM_MAPPED\n");
+        wprintf(L"print_type: 0x%p is MEM_MAPPED\n", address);
     if (type & MEM_PRIVATE)
-        wprintf(L"print_type: 0x%p is MEM_PRIVATE\n");
+        wprintf(L"print_type: 0x%p is MEM_PRIVATE\n", address);
 }
 #endif
 
