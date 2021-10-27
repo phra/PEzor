@@ -35,7 +35,7 @@ void DumpHex(const void* data, size_t size) {
 	}
 }
 
-void print_protection(DWORD protections) {
+void print_protection(void* address, DWORD protections) {
     if (protections & PAGE_READONLY)
         wprintf(L"print_protection: 0x%p is PAGE_READONLY\n");
     if (protections & PAGE_READWRITE)
@@ -58,7 +58,7 @@ void print_protection(DWORD protections) {
         wprintf(L"print_protection: 0x%p is PAGE_NOCACHE\n");
 }
 
-void print_type(DWORD type) {
+void print_type(void* address, DWORD type) {
     if (type & MEM_IMAGE)
         wprintf(L"print_type: 0x%p is MEM_IMAGE\n");
     if (type & MEM_MAPPED)
@@ -95,10 +95,10 @@ BOOL is_shellcode_thread(void* address) {
     MEMORY_BASIC_INFORMATION mbi = { 0 };
     if (VirtualQuery(address, &mbi, sizeof(mbi))) {
         #ifdef _DEBUG_
-            print_protection(mbi.Protect);
-            print_type(mbi.Type);
+            print_protection(address, mbi.Protect);
+            print_type(address, mbi.Type);
         #endif
-        return mbi.Type == MEM_PRIVATE || mbi.Type == MEM_MAPPED;
+        return mbi.Type == MEM_PRIVATE || mbi.Type == MEM_MAPPED || mbi.Type == MEM_IMAGE;
     } else {
         #ifdef _DEBUG_
             wprintf(L"get_allocation_base_from_pointer: cannot get protection for 0x%p\n", address);
