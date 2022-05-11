@@ -1,5 +1,6 @@
 #!/usr/bin/env bash
 
+go env -w GO111MODULE=off
 CURR_DIR=`pwd`
 INSTALL_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 
