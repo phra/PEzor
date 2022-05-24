@@ -41,6 +41,7 @@ OUTPUT_EXTENSION=exe
 CLEANUP=false
 SOURCES=""
 FLUCTUATE=false
+XOR_KEY=false
 
 usage() {
     echo 'Usage PE:        ./PEzor.sh [-32|-64] [-debug] [-syscalls] [-unhook] [-sleep=<SECONDS>] [-sgn] [-antidebug] [-text] [-self] [-rx] [-format=<FORMAT>] <executable.exe> [donut args]'
@@ -244,6 +245,10 @@ do
             FLUCTUATE="${arg#*=}"
             echo "[?] Fluctuate: $FLUCTUATE"
             ;;
+        -xorkey=*)
+            XOR_KEY="${arg#*=}"
+            echo "[?] XOR key: $XOR_KEY"
+            ;;
         *)
             echo "[?] Processing $arg"
             ls $arg 1>/dev/null 2>&1 || { echo "[x] ERROR: $arg doesn't exist"; exit 1; }
@@ -341,7 +346,12 @@ case $OUTPUT_FORMAT in
             echo '#pragma clang diagnostic ignored "-Woverlength-strings"' >> $TMP_DIR/shellcode.cpp &&
             if [ $TEXT = true ]; then echo '__attribute__((section (".text")))' >> $TMP_DIR/shellcode.cpp; fi &&
             echo -n 'unsigned char buf[] = "' >> $TMP_DIR/shellcode.cpp &&
-            od -vtx1 $TMP_DIR/shellcode.bin.donut | sed -e 's/^[0-9]* //' -e '$d' -e 's/^/ /' -e 's/ /\\x/g' | tr -d '\n' >> $TMP_DIR/shellcode.cpp &&
+            if [ $XOR_KEY != false ]; then
+                xortool-xor -r $XOR_KEY -n -f $TMP_DIR/shellcode.bin.donut > $TMP_DIR/shellcode.bin.donut.xor
+            else
+                cp $TMP_DIR/shellcode.bin.donut $TMP_DIR/shellcode.bin.donut.xor
+            fi
+            od -vtx1 $TMP_DIR/shellcode.bin.donut.xor | sed -e 's/^[0-9]* //' -e '$d' -e 's/^/ /' -e 's/ /\\x/g' | tr -d '\n' >> $TMP_DIR/shellcode.cpp &&
             echo '";' >> $TMP_DIR/shellcode.cpp &&
             echo 'unsigned int buf_size = sizeof(buf);' >> $TMP_DIR/shellcode.cpp || exit 1
         else
@@ -359,10 +369,16 @@ case $OUTPUT_FORMAT in
                 cp $TMP_DIR/shellcode.bin.donut $TMP_DIR/shellcode.bin
             fi
 
+            if [ $XOR_KEY != false ]; then
+                xortool-xor -r $XOR_KEY -n -f $TMP_DIR/shellcode.bin > $TMP_DIR/shellcode.bin.xor
+            else
+                cp $TMP_DIR/shellcode.bin $TMP_DIR/shellcode.bin.xor
+            fi
+
             echo '#pragma clang diagnostic ignored "-Woverlength-strings"' >> $TMP_DIR/shellcode.cpp &&
             if [ $TEXT = true ]; then echo '__attribute__((section (".text")))' >> $TMP_DIR/shellcode.cpp; fi &&
             echo -n 'unsigned char buf[] = "' >> $TMP_DIR/shellcode.cpp &&
-            od -vtx1 $TMP_DIR/shellcode.bin | sed -e 's/^[0-9]* //' -e '$d' -e 's/^/ /' -e 's/ /\\x/g' | tr -d '\n' >> $TMP_DIR/shellcode.cpp &&
+            od -vtx1 $TMP_DIR/shellcode.bin.xor | sed -e 's/^[0-9]* //' -e '$d' -e 's/^/ /' -e 's/ /\\x/g' | tr -d '\n' >> $TMP_DIR/shellcode.cpp &&
             echo '";' >> $TMP_DIR/shellcode.cpp &&
             echo 'unsigned int buf_size = sizeof(buf);' >> $TMP_DIR/shellcode.cpp || exit 1
         fi
@@ -433,6 +449,11 @@ case $OUTPUT_FORMAT in
         elif [ $FLUCTUATE = "na" ] || [ $FLUCTUATE = "NA" ]; then
             CCFLAGS="$CCFLAGS -DFLUCTUATE -DFLUCTUATE_NA"
             CPPFLAGS="$CPPFLAGS -DFLUCTUATE -DFLUCTUATE_NA"
+        fi
+
+        if [ $XOR_KEY != false ]; then
+            CCFLAGS="$CCFLAGS -DXOR_KEY=\"$XOR_KEY\""
+            CPPFLAGS="$CPPFLAGS -DXOR_KEY=\"$XOR_KEY\""
         fi
 
         if [ $OUTPUT_FORMAT = "dll" ]; then

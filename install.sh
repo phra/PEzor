@@ -6,7 +6,8 @@ INSTALL_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 cd $INSTALL_DIR &&
 
 apt update &&
-apt install -y wget unzip build-essential cmake autotools-dev git clang golang mingw-w64 libcapstone-dev libssl-dev cowsay mono-devel &&
+apt install -y python3-pip wget unzip build-essential cmake autotools-dev git clang golang mingw-w64 libcapstone-dev libssl-dev cowsay mono-devel &&
+pip3 install xortool &&
 
 mkdir -p deps &&
 cd deps &&
@@ -48,7 +49,7 @@ cd .. &&
 
 wget https://www.cobaltstrike.com/downloads/beacon.h &&
 
-(grep -q _prefix_PEzor_ ~/.bashrc || echo "export PATH=\$PATH:~/go/bin/:$INSTALL_DIR:$INSTALL_DIR/deps/donut/:$INSTALL_DIR/deps/wclang/_prefix_PEzor_/bin/") >> ~/.bashrc &&
+(grep -q _prefix_PEzor_ ~/.bashrc || echo "export PATH=\$PATH:~/.local/bin/:~/go/bin/:$INSTALL_DIR:$INSTALL_DIR/deps/donut/:$INSTALL_DIR/deps/wclang/_prefix_PEzor_/bin/") >> ~/.bashrc &&
 
 export PATH=$PATH:~/go/bin/:$INSTALL_DIR:$INSTALL_DIR/deps/donut/:$INSTALL_DIR/deps/wclang/_prefix_PEzor_/bin/ &&
 
@@ -62,4 +63,4 @@ cd $CURR_DIR &&
 
 echo '[!] installation complete' &&
 echo '[?] run the following command to update $PATH variable or restart your shell' &&
-echo "export PATH=\$PATH:~/go/bin/:$INSTALL_DIR:$INSTALL_DIR/deps/donut/:$INSTALL_DIR/deps/wclang/_prefix_PEzor_/bin/"
+echo "export PATH=\$PATH:~/.local/bin/:~/go/bin/:$INSTALL_DIR:$INSTALL_DIR/deps/donut/:$INSTALL_DIR/deps/wclang/_prefix_PEzor_/bin/"
