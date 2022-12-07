@@ -45,8 +45,8 @@ cd $INSTALL_DIR &&
     wget https://www.cobaltstrike.com/downloads/beacon.h -O $INSTALL_DIR/beacon.h &&
     (env | grep -q '_prefix_PEzor_' || printf "\nexport PATH=\$PATH:~/go/bin/:$INSTALL_DIR:$INSTALL_DIR/deps/donut/:$INSTALL_DIR/deps/wclang/_prefix_PEzor_/bin/\n") >>~/.bashrc && (env | grep -q '_prefix_PEzor_' || printf "\nexport PATH=\$PATH:~/go/bin/:$INSTALL_DIR:$INSTALL_DIR/deps/donut/:$INSTALL_DIR/deps/wclang/_prefix_PEzor_/bin/\n") >>~/.zshrc &&
     export PATH=$PATH:~/go/bin/:$INSTALL_DIR:$INSTALL_DIR/deps/donut/:$INSTALL_DIR/deps/wclang/_prefix_PEzor_/bin/ &&
-    ln -fs $INSTALL_DIR/PEzor.sh $INSTALL_DIR/PEzor &&
-    chmod +x $INSTALL_DIR/PEzor &&
+    sudo ln -fs $INSTALL_DIR/PEzor.sh $INSTALL_DIR/PEzor &&
+    sudo chmod +x $INSTALL_DIR/PEzor &&
     $INSTALL_DIR/PEzor.sh -h &&
     cd $CURR_DIR &&
     echo '[!] installation complete' &&
