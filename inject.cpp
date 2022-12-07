@@ -234,7 +234,7 @@ LPVOID inject_shellcode_self(unsigned char shellcode[], SIZE_T size, PHANDLE phT
                 THREAD_ALL_ACCESS,
                 nullptr,
                 (HANDLE)-1,
-                executor,
+                (void*)executor,
                 allocation,
                 THREAD_CREATE_FLAGS_HIDE_FROM_DEBUGGER,
                 0,
