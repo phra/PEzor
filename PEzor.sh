@@ -337,7 +337,7 @@ case $OUTPUT_FORMAT in
         echo "unsigned int sleep_time = $SLEEP;" > $TMP_DIR/sleep.cpp
         if [ $IS_SHELLCODE = false ] && [ $SGN = false ]; then
             echo '[?] Executing donut' &&
-            (donut -i $BLOB -o $TMP_DIR/shellcode.bin.donut "$@" || exit 1) &&
+            (donut  $BLOB -o $TMP_DIR/shellcode.bin.donut "$@" || exit 1) &&
             echo '#pragma clang diagnostic ignored "-Woverlength-strings"' >> $TMP_DIR/shellcode.cpp &&
             if [ $TEXT = true ]; then echo '__attribute__((section (".text")))' >> $TMP_DIR/shellcode.cpp; fi &&
             echo -n 'unsigned char buf[] = "' >> $TMP_DIR/shellcode.cpp &&
@@ -347,7 +347,7 @@ case $OUTPUT_FORMAT in
         else
             if [ $IS_SHELLCODE = false ]; then
                 echo '[?] Executing donut' &&
-                (donut -i $BLOB -o $TMP_DIR/shellcode.bin.donut "$@" || exit 1)
+                (donut $BLOB -o $TMP_DIR/shellcode.bin.donut "$@" || exit 1)
             else
                 cp $BLOB $TMP_DIR/shellcode.bin.donut
             fi
@@ -493,12 +493,12 @@ case $OUTPUT_FORMAT in
         echo -n 'public static ' >> $TMP_DIR/Global.cs
         if [ $IS_SHELLCODE = false ] && [ $SGN = false ]; then
             echo '[?] Executing donut' &&
-            (donut -i $BLOB -f 7 -o $TMP_DIR/shellcode.cs "$@" || exit 1) &&
+            (donut $BLOB -f 7 -o $TMP_DIR/shellcode.cs "$@" || exit 1) &&
             cat $TMP_DIR/shellcode.cs >> $TMP_DIR/Global.cs
         else
             if [ $IS_SHELLCODE = false ]; then
                 echo '[?] Executing donut' &&
-                (donut -i $BLOB -o $TMP_DIR/shellcode.bin.donut "$@" || exit 1)
+                (donut $BLOB -o $TMP_DIR/shellcode.bin.donut "$@" || exit 1)
             else
                 cp $BLOB $TMP_DIR/shellcode.bin.donut
             fi
