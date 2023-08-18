@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 
-VERSION="3.1.2"
+VERSION="3.2.0"
 
 cowsay -f dragon 'PEzor!! v'$VERSION 2>/dev/null || echo 'PEzor!! v'$VERSION
 echo '---------------------------------------------------------------------------'
@@ -169,6 +169,7 @@ command -v $CC >/dev/null 2>&1 || { echo >&2 "$CC is missing from \$PATH. Check 
 command -v donut >/dev/null 2>&1 || { echo >&2 "donut is missing from \$PATH. Check https://github.com/TheWover/donut to learn how to install it"; exit 1; }
 command -v sgn >/dev/null 2>&1 || { echo >&2 "sgn is missing from \$PATH. Check https://github.com/EgeBalci/sgn to learn how to install it"; exit 1; }
 command -v mcs >/dev/null 2>&1 || { echo >&2 "mcs is missing from \$PATH. Re-run install.sh script"; exit 1; }
+command -v xortool-xor >/dev/null 2>&1 || { echo >&2 "xortool-xor is missing from \$PATH. Re-run install.sh script"; exit 1; }
 
 for arg in "$@"
 do
@@ -342,7 +343,7 @@ case $OUTPUT_FORMAT in
         echo "unsigned int sleep_time = $SLEEP;" > $TMP_DIR/sleep.cpp
         if [ $IS_SHELLCODE = false ] && [ $SGN = false ]; then
             echo '[?] Executing donut' &&
-            (donut -i $BLOB -o $TMP_DIR/shellcode.bin.donut "$@" || exit 1) &&
+            (donut -i $BLOB -o $TMP_DIR/shellcode.bin.donut "$@" && ls $TMP_DIR/shellcode.bin.donut 1>/dev/null 2>&1) &&
             echo '#pragma clang diagnostic ignored "-Woverlength-strings"' >> $TMP_DIR/shellcode.cpp &&
             if [ $TEXT = true ]; then echo '__attribute__((section (".text")))' >> $TMP_DIR/shellcode.cpp; fi &&
             echo -n 'unsigned char buf[] = "' >> $TMP_DIR/shellcode.cpp &&
@@ -350,30 +351,30 @@ case $OUTPUT_FORMAT in
                 xortool-xor -r $XOR_KEY -n -f $TMP_DIR/shellcode.bin.donut > $TMP_DIR/shellcode.bin.donut.xor
             else
                 cp $TMP_DIR/shellcode.bin.donut $TMP_DIR/shellcode.bin.donut.xor
-            fi
+            fi &&
             od -vtx1 $TMP_DIR/shellcode.bin.donut.xor | sed -e 's/^[0-9]* //' -e '$d' -e 's/^/ /' -e 's/ /\\x/g' | tr -d '\n' >> $TMP_DIR/shellcode.cpp &&
             echo '";' >> $TMP_DIR/shellcode.cpp &&
             echo 'unsigned int buf_size = sizeof(buf);' >> $TMP_DIR/shellcode.cpp || exit 1
         else
             if [ $IS_SHELLCODE = false ]; then
                 echo '[?] Executing donut' &&
-                (donut -i $BLOB -o $TMP_DIR/shellcode.bin.donut "$@" || exit 1)
+                (donut -i $BLOB -o $TMP_DIR/shellcode.bin.donut "$@" && ls $TMP_DIR/shellcode.bin.donut 1>/dev/null 2>&1)
             else
                 cp $BLOB $TMP_DIR/shellcode.bin.donut
-            fi
+            fi &&
 
             if [ $SGN = true ]; then
                 echo '[?] Executing sgn' &&
                 (sgn -a $BITS -c 1 -o $TMP_DIR/shellcode.bin $TMP_DIR/shellcode.bin.donut || exit 1)
             else
                 cp $TMP_DIR/shellcode.bin.donut $TMP_DIR/shellcode.bin
-            fi
+            fi &&
 
             if [ $XOR_KEY != false ]; then
                 xortool-xor -r $XOR_KEY -n -f $TMP_DIR/shellcode.bin > $TMP_DIR/shellcode.bin.xor
             else
                 cp $TMP_DIR/shellcode.bin $TMP_DIR/shellcode.bin.xor
-            fi
+            fi &&
 
             echo '#pragma clang diagnostic ignored "-Woverlength-strings"' >> $TMP_DIR/shellcode.cpp &&
             if [ $TEXT = true ]; then echo '__attribute__((section (".text")))' >> $TMP_DIR/shellcode.cpp; fi &&
@@ -381,7 +382,7 @@ case $OUTPUT_FORMAT in
             od -vtx1 $TMP_DIR/shellcode.bin.xor | sed -e 's/^[0-9]* //' -e '$d' -e 's/^/ /' -e 's/ /\\x/g' | tr -d '\n' >> $TMP_DIR/shellcode.cpp &&
             echo '";' >> $TMP_DIR/shellcode.cpp &&
             echo 'unsigned int buf_size = sizeof(buf);' >> $TMP_DIR/shellcode.cpp || exit 1
-        fi
+        fi &&
 
         if [[ ( $OUTPUT_FORMAT = "exe" || $OUTPUT_FORMAT = "service-exe" ) && $DEBUG = false ]]; then
             CCFLAGS="-O3 -Wl,-strip-all,-subsystem=windows -Wall -pedantic"
@@ -389,9 +390,7 @@ case $OUTPUT_FORMAT in
         else
             CCFLAGS="-O3 -Wl,-strip-all, -Wall -pedantic"
             CPPFLAGS="-O3 -Wl,-strip-all, -Wall -pedantic"
-        fi
-
-        CXXFLAGS="-std=c++17 -static"
+        fi &&
 
         if [ $BITS -eq 32 ]; then
             CC=i686-w64-mingw32-clang
@@ -401,47 +400,47 @@ case $OUTPUT_FORMAT in
         else
             CCFLAGS="$CCFLAGS -D_WIN64 -DWIN_X64"
             CPPFLAGS="$CPPFLAGS -D_WINX64 -DWIN_X64"
-        fi
+        fi &&
 
         if [ $DEBUG = true ]; then
             CCFLAGS="$CCFLAGS -D_DEBUG_"
             CPPFLAGS="$CPPFLAGS -D_DEBUG_"
-        fi
+        fi &&
 
         if [ $SYSCALLS = true ]; then
             CCFLAGS="$CCFLAGS -DSYSCALLS"
             CPPFLAGS="$CPPFLAGS -DSYSCALLS"
-        fi
+        fi &&
 
         if [ $UNHOOK = true ]; then
             CCFLAGS="$CCFLAGS -DUNHOOK"
             CPPFLAGS="$CPPFLAGS -DUNHOOK"
-        fi
+        fi &&
 
         if [ $ANTIDEBUG = true ]; then
             CCFLAGS="$CCFLAGS -DANTIDEBUG"
             CPPFLAGS="$CPPFLAGS -DANTIDEBUG"
-        fi
+        fi &&
 
         if [ $SELF = true ]; then
             CCFLAGS="$CCFLAGS -DSELFINJECT"
             CPPFLAGS="$CPPFLAGS -DSELFINJECT"
-        fi
+        fi &&
 
         if [ $RX = true ]; then
             CCFLAGS="$CCFLAGS -DRX"
             CPPFLAGS="$CPPFLAGS -DRX"
-        fi
+        fi &&
 
         if [ $TEXT = true ]; then
             CCFLAGS="$CCFLAGS -D_TEXT_"
             CPPFLAGS="$CPPFLAGS -D_TEXT_"
-        fi
+        fi &&
 
         if [ $CLEANUP = true ]; then
             CCFLAGS="$CCFLAGS -D_CLEANUP_"
             CPPFLAGS="$CPPFLAGS -D_CLEANUP_"
-        fi
+        fi &&
 
         if [ $FLUCTUATE = "rw" ] || [ $FLUCTUATE = "RW" ]; then
             CCFLAGS="$CCFLAGS -DFLUCTUATE -DFLUCTUATE_RW"
@@ -449,12 +448,12 @@ case $OUTPUT_FORMAT in
         elif [ $FLUCTUATE = "na" ] || [ $FLUCTUATE = "NA" ]; then
             CCFLAGS="$CCFLAGS -DFLUCTUATE -DFLUCTUATE_NA"
             CPPFLAGS="$CPPFLAGS -DFLUCTUATE -DFLUCTUATE_NA"
-        fi
+        fi &&
 
         if [ $XOR_KEY != false ]; then
             CCFLAGS="$CCFLAGS -DXOR_KEY=\"$XOR_KEY\""
             CPPFLAGS="$CPPFLAGS -DXOR_KEY=\"$XOR_KEY\""
-        fi
+        fi &&
 
         if [ $OUTPUT_FORMAT = "dll" ]; then
             CCFLAGS="$CCFLAGS -shared -DSHAREDOBJECT"
@@ -471,31 +470,32 @@ case $OUTPUT_FORMAT in
         elif [ $OUTPUT_FORMAT = "bof" ]; then
             CCFLAGS="$CCFLAGS -c -D_BOF_"
             CPPFLAGS="$CPPFLAGS -c -D_BOF_"
-        fi
+        fi &&
 
         if [ $OUTPUT_FORMAT = "reflective-dll" ]; then
             $CC $CCFLAGS -c $INSTALL_DIR/ReflectiveDLLInjection/dll/src/ReflectiveLoader.c -o $TMP_DIR/ReflectiveLoader.o
             SOURCES="$SOURCES $TMP_DIR/ReflectiveLoader.o"
-        fi
+        fi &&
 
         if [ $UNHOOK = true ] || [ $ANTIDEBUG = true ]; then
             $CC $CCFLAGS -c $INSTALL_DIR/ApiSetMap.c -o $TMP_DIR/ApiSetMap.o &&
             SOURCES="$SOURCES $TMP_DIR/ApiSetMap.o"
-        fi
+        fi &&
 
         if [ $UNHOOK = true ]; then
             $CC $CCFLAGS -c $INSTALL_DIR/loader.c -o $TMP_DIR/loader.o &&
             SOURCES="$SOURCES $TMP_DIR/loader.o"
-        fi
+        fi &&
 
         if [ $FLUCTUATE = "rw" ] || [ $FLUCTUATE = "RW" ] || [ $FLUCTUATE = "na" ] || [ $FLUCTUATE = "NA" ]; then
             SOURCES="$SOURCES $INSTALL_DIR/fluctuate.cpp"
-        fi
+        fi &&
 
         if [ $OUTPUT_FORMAT = "bof" ]; then
             # $CXX $CPPFLAGS $CXXFLAGS -Wl,--disable-auto-import -Wl,--disable-runtime-pseudo-reloc $TMP_DIR/shellcode.cpp -c -o $TMP_DIR/shellcode.o
             # $CXX $CPPFLAGS $CXXFLAGS $TMP_DIR/sleep.cpp -c -o $TMP_DIR/sleep.o &&
             # $CXX $CPPFLAGS $CXXFLAGS $INSTALL_DIR/inject.cpp -c -o $TMP_DIR/inject.o &&
+            CXXFLAGS="-std=c++17 -static"
             grep -v '#include "inject.hpp"' $INSTALL_DIR/inject.cpp > $TMP_DIR/inject.cpp &&
             cat $TMP_DIR/{shellcode,sleep}.cpp $INSTALL_DIR/bof.cpp $TMP_DIR/inject.cpp > $TMP_DIR/bof.cpp &&
             cp $INSTALL_DIR/{sleep,inject,syscalls}.hpp $INSTALL_DIR/beacon.h $TMP_DIR &&
@@ -509,56 +509,56 @@ case $OUTPUT_FORMAT in
         fi
         ;;
     dotnet*)
+        DOTNET_FLAGS="-unsafe -debug-"
         echo 'public static class Global {' >> $TMP_DIR/Global.cs &&
         echo "public static int sleep_time = $SLEEP;" >> $TMP_DIR/Global.cs &&
-        echo -n 'public static ' >> $TMP_DIR/Global.cs
+        echo -n 'public static ' >> $TMP_DIR/Global.cs &&
         if [ $IS_SHELLCODE = false ] && [ $SGN = false ]; then
             echo '[?] Executing donut' &&
-            (donut -i $BLOB -f 7 -o $TMP_DIR/shellcode.cs "$@" || exit 1) &&
+            (donut -i $BLOB -f 7 -o $TMP_DIR/shellcode.cs "$@" && ls $TMP_DIR/shellcode.cs 1>/dev/null 2>&1) &&
             cat $TMP_DIR/shellcode.cs >> $TMP_DIR/Global.cs
         else
             if [ $IS_SHELLCODE = false ]; then
                 echo '[?] Executing donut' &&
-                (donut -i $BLOB -o $TMP_DIR/shellcode.bin.donut "$@" || exit 1)
+                (donut -i $BLOB -o $TMP_DIR/shellcode.bin.donut "$@" && ls $TMP_DIR/shellcode.bin.donut 1>/dev/null 2>&1)
             else
                 cp $BLOB $TMP_DIR/shellcode.bin.donut
-            fi
+            fi &&
 
             if [ $SGN = true ]; then
                 echo '[?] Executing sgn' &&
                 (sgn -a $BITS -c 1 -o $TMP_DIR/shellcode.bin $TMP_DIR/shellcode.bin.donut || exit 1)
             else
                 cp $TMP_DIR/shellcode.bin.donut $TMP_DIR/shellcode.bin
-            fi
+            fi &&
 
             echo -n 'byte[] my_buf = {' >> $TMP_DIR/Global.cs &&
             od -vtx1 $TMP_DIR/shellcode.bin | sed -e 's/^[0-9]* //' -e '$d' -e 's/^/ /' -e 's/ /,0x/g' -e 's/^,//g' | sed -z -e 's/\n/,/g' -e 's/,$//g' >> $TMP_DIR/Global.cs &&
             echo -n '};' >> $TMP_DIR/Global.cs
-        fi
-        echo '}' >> $TMP_DIR/Global.cs
-        DOTNET_FLAGS="-unsafe -debug-"
+        fi &&
+        echo '}' >> $TMP_DIR/Global.cs &&
 
         if [ ! $SDK = "4.5" ]; then
             DOTNET_FLAGS="$DOTNET_FLAGS -sdk:$SDK"
-        fi
+        fi &&
 
         if [ $BITS -eq 32 ]; then
             DOTNET_FLAGS="$DOTNET_FLAGS -platform:x86"
         else
             DOTNET_FLAGS="$DOTNET_FLAGS -platform:x64"
-        fi
+        fi &&
 
         if [ $DEBUG = true ]; then
             DOTNET_FLAGS="$DOTNET_FLAGS -define:_DEBUG_"
-        fi
+        fi &&
 
         if [ $SELF = true ]; then
             DOTNET_FLAGS="$DOTNET_FLAGS -define:SELFINJECT"
-        fi
+        fi &&
 
         if [ $RX = true ]; then
             DOTNET_FLAGS="$DOTNET_FLAGS -define:RX"
-        fi
+        fi &&
 
         case $OUTPUT_FORMAT in
         dotnet)
@@ -573,9 +573,8 @@ case $OUTPUT_FORMAT in
             mcs $DOTNET_FLAGS -out:$BLOB.packed.$OUTPUT_EXTENSION $INSTALL_DIR/dotnet/*.cs $TMP_DIR/Global.cs
             ;;
         esac
-
         ;;
-esac
+esac &&
 
 rm -rf $TMP_DIR &&
 echo -n '[!] Done! Check '; file $BLOB.packed.$OUTPUT_EXTENSION
