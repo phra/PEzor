@@ -34,7 +34,7 @@ make install &&
 cd ../..)
 ) &&
 
-go get github.com/EgeBalci/sgn &&
+go install github.com/EgeBalci/sgn@latest &&
 
 (ls wclang 2>/dev/null 1>&2 || (git clone --depth 1 https://github.com/tpoechtrager/wclang.git &&
 cd wclang &&
@@ -46,7 +46,7 @@ cd ..)
 
 cd .. &&
 
-wget https://www.cobaltstrike.com/downloads/beacon.h &&
+wget https://raw.githubusercontent.com/Cobalt-Strike/bof_template/main/beacon.h &&
 
 (grep -q _prefix_PEzor_ ~/.bashrc || echo "export PATH=\$PATH:~/go/bin/:$INSTALL_DIR:$INSTALL_DIR/deps/donut/:$INSTALL_DIR/deps/wclang/_prefix_PEzor_/bin/") >> ~/.bashrc &&
 
