@@ -93,6 +93,7 @@ OPTIONS
   -sleep=N                  Sleeps for N seconds before unpacking the shellcode
   -format=FORMAT            Outputs result in specified FORMAT (exe, dll, reflective-dll, service-exe, service-dll, dotnet, dotnet-createsection, dotnet-pinvoke)
   -fluctuate=PROTECTION     Fluctuate memory region to PROTECTION (RW or NA) by hooking Sleep()
+  -xorkey=KEY               Encrypt payload with a simple multibyte XOR, it retrieves the key at runtime by using GetComputerNameExA(ComputerNameDnsFullyQualified)
   [donut args...]           After the executable to pack, you can pass additional Donut args, such as -z 2
 
 EXAMPLES
@@ -106,6 +107,10 @@ EXAMPLES
   $ PEzor.sh -fluctuate=RW -sleep=120 mimikatz/x64/mimikatz.exe -z 2 -p '"coffee" "sleep 5000" "coffee" "exit"'
   # 64-bit (fluctuate to NOACCESS when sleeping)
   $ PEzor.sh -fluctuate=NA -sleep=120 mimikatz/x64/mimikatz.exe -z 2 -p '"coffee" "sleep 5000" "coffee" "exit"'
+  # 64-bit (use environmental keying with GetComputerNameExA)
+  $ PEzor.sh -xorkey=MY-FQDN-COMPUTER-NAME -sleep=120 mimikatz/x64/mimikatz.exe -z 2 -p '"coffee" "sleep 5000" "coffee" "exit"'
+  # 64-bit (support EXEs with resources by keeping PE headers in memory)
+  $ PEzor.sh -sleep=120 mimikatz/x64/mimikatz.exe -z 2 -k 1 -p '"coffee" "sleep 5000" "coffee" "exit"'
   # 64-bit (beacon object file)
   $ PEzor.sh -format=bof mimikatz/x64/mimikatz.exe -z 2 -p '"log c:\users\public\mimi.out" "token::whoami" "exit"'
   # 64-bit (beacon object file w/ cleanup)
@@ -157,6 +162,7 @@ OPTIONS
   -sleep=N                  Sleeps for N seconds before unpacking the shellcode
   -format=FORMAT            Outputs result in specified FORMAT (exe, dll, reflective-dll, service-exe, service-dll, dotnet, dotnet-createsection, dotnet-pinvoke)
   -fluctuate=PROTECTION     Fluctuate memory region to PROTECTION (RW or NA) by hooking Sleep()
+  -xorkey=KEY               Encrypt payload with a simple multibyte XOR, it retrieves the key at runtime by using GetComputerNameExA(ComputerNameDnsFullyQualified)
 
 EXAMPLES
   # 64-bit (self-inject RWX)
@@ -171,6 +177,8 @@ EXAMPLES
   $ PEzor.sh -fluctuate=RW shellcode.bin
   # 64-bit (fluctuate to NOACCESS when sleeping)
   $ PEzor.sh -fluctuate=NA shellcode.bin
+  # 64-bit (use environmental keying with GetComputerNameExA)
+  $ PEzor.sh -xorkey=MY-FQDN-MACHINE-NAME shellcode.bin
   # 64-bit (beacon object file)
   $ PEzor.sh -format=bof shellcode.bin
   # 64-bit (beacon object file w/ cleanup)
