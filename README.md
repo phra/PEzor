@@ -46,9 +46,9 @@ $ sudo bash install.sh
 $ bash PEzor.sh -h
 ```
 
-# Upgrading from v2.x.x
+# ~Upgrading from v2.x.x~
 
-The `PATH` variable has to be updated to use a specific commit of [Donut](https://github.com/TheWover/donut)! Check the updated `install.sh` script.
+~The `PATH` variable has to be updated to use a specific commit of [Donut](https://github.com/TheWover/donut)! Check the updated `install.sh` script.~
 
 <!-- installstop -->
 
