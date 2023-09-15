@@ -15,7 +15,7 @@ alias generate-payload {
 }
 
 sub execute_PEzor {
-    local('$command $match $shellcode $type $executable $sgn $rx $self $debug $32 $64 $sdk $index $unhook $syscalls $cleanup $antidebug $sleep $wait $format $length $end $opts $args $otheropts @argv $tmpdest $handle @output $packed');
+    local('$command $match $shellcode $type $executable $sgn $rx $self $debug $32 $64 $sdk $index $unhook $syscalls $cleanup $antidebug $sleep $wait $format $length $end $opts $args $otheropts @argv $tmpdest $handle @output $packed $xorkey');
     $command = $1;
 
     # manually parse args
@@ -78,6 +78,10 @@ sub execute_PEzor {
     find($command, '\-wait=(\d*)');
     ($match, $type) = matched();
     $wait = copy($match);
+
+    find($command, '\-xorkey=([\w\-_]*)');
+    ($match, $type) = matched();
+    $xorkey = copy($match);
 
     find($command, '\-format=([\w\-]*)');
     ($match, $type) = matched();
@@ -159,6 +163,10 @@ sub execute_PEzor {
 
     if ($sleep ne "") {
         push(@argv, "-sleep= $+ $sleep");
+    }
+
+    if ($xorkey ne "") {
+        push(@argv, "-xorkey= $+ $xorkey");
     }
 
     if ($format ne "") {

