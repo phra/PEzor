@@ -21,8 +21,7 @@ cd deps &&
     mv $INSTALL_DIR/deps/inline_syscall/include/in_memory_init.hpp2 $INSTALL_DIR/deps/inline_syscall/include/in_memory_init.hpp)
 ) &&
 
-(ls donut 2>/dev/null 1>&2 || (git clone https://github.com/TheWover/donut.git && cd donut && git checkout b70467e &&
-make )
+(ls donut 2>/dev/null 1>&2 || (git clone https://github.com/TheWover/donut.git && cd donut && make)
 ) &&
 
 (ls keystone 2>/dev/null 1>&2 || (git clone --depth 1 https://github.com/keystone-engine/keystone.git &&
