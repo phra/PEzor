@@ -504,6 +504,7 @@ case $OUTPUT_FORMAT in
             $CXX -mno-stack-arg-probe $CPPFLAGS $CXXFLAGS $TMP_DIR/bof.cpp -c -o $BLOB.packed.$OUTPUT_EXTENSION || exit 1
             # x86_64-w64-mingw32-ld -r $TMP_DIR/{sleep,bof,inject}.o -o $BLOB.packed.$OUTPUT_EXTENSION
         else
+            CXXFLAGS="-std=c++17 -static"
             $CXX $CPPFLAGS $CXXFLAGS $INSTALL_DIR/{inject,PEzor}.cpp $TMP_DIR/{shellcode,sleep}.cpp $SOURCES -o $BLOB.packed.$OUTPUT_EXTENSION &&
             strip $BLOB.packed.$OUTPUT_EXTENSION || exit 1
         fi
