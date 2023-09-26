@@ -1,0 +1,8 @@
+#include <windows.h>
+#include "resource.h"
+
+STRINGTABLE
+BEGIN
+    IDS_MESSAGE "Hello, World!"
+    IDS_TITLE "MessageBox Example"
+END
