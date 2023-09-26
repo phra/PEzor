@@ -6,7 +6,7 @@ INSTALL_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 cd $INSTALL_DIR &&
 
 sudo apt update &&
-sudo apt install -y python3-pip wget unzip build-essential cmake autotools-dev git clang golang mingw-w64 libcapstone-dev libssl-dev cowsay mono-devel &&
+sudo apt install -y python3-pip wget unzip build-essential cmake autotools-dev git clang golang mingw-w64 libcapstone-dev libssl-dev cowsay mono-devel wine64-tools &&
 pip3 install --no-warn-script-location xortool &&
 
 mkdir -p deps &&
