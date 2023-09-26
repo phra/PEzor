@@ -6,6 +6,7 @@ if [ $# -ne 1 ]; then
 fi
 
 original_dll="$1"
+source_dll="ForwardedDLL.c"
 output_def="ForwardedDLL.def"
 output_dll="ForwardedDLL.dll"
 
@@ -30,6 +31,6 @@ awk '
 ' > $output_def
 
 # Compile the C++ source code into a DLL using clang and mingw
-x86_64-w64-mingw32-gcc -shared -o "$output_dll" "$output_def"
+x86_64-w64-mingw32-gcc -shared -o "$output_dll" "$source_dll" "$output_def"
 
 echo "Forwarded DLL created: $output_dll"
