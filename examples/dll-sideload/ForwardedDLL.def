@@ -1,0 +1,3 @@
+EXPORTS
+    myFunction1=library.myFunction1 @2
+    myFunction2=library.myFunction2 @3
