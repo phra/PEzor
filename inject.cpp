@@ -91,9 +91,7 @@ LPVOID inject_shellcode_self(unsigned char shellcode[], SIZE_T size, PHANDLE phT
             return NULL;
         }
     #else
-	puts("before sleep \n");
         Sleep(sleep_time);
-	puts("after sleep \n");
     #endif
 
     #ifdef FLUCTUATE

