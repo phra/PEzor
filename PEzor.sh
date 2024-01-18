@@ -320,7 +320,7 @@ if [ $RX = true ] && [ $SGN = true ]; then
     exit 1
 fi
 
-if [ $SELF = true ] && [ $OUTPUT_FORMAT == "dll" -o $OUTPUT_FORMAT == "service-dll" -o $OUTPUT_FORMAT == "reflective-dll"]; then
+if [ $SELF = true ] && [ $OUTPUT_FORMAT == "dll" -o $OUTPUT_FORMAT == "service-dll" -o $OUTPUT_FORMAT == "reflective-dll" ]; then
     echo '[x] Error: cannot self-execute the payload when targeting DLLs'
     exit 1
 fi
