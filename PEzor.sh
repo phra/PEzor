@@ -397,7 +397,7 @@ case $OUTPUT_FORMAT in
 
             if [ $SGN = true ]; then
                 echo '[?] Executing sgn' &&
-                (sgn -a $BITS -c 1 -o $TMP_DIR/shellcode.bin $TMP_DIR/shellcode.bin.donut || exit 1)
+                (sgn -a $BITS -c 1 -o $TMP_DIR/shellcode.bin -i $TMP_DIR/shellcode.bin.donut || exit 1)
             else
                 cp $TMP_DIR/shellcode.bin.donut $TMP_DIR/shellcode.bin
             fi &&
@@ -589,7 +589,7 @@ case $OUTPUT_FORMAT in
 
             if [ $SGN = true ]; then
                 echo '[?] Executing sgn' &&
-                (sgn -a $BITS -c 1 -o $TMP_DIR/shellcode.bin $TMP_DIR/shellcode.bin.donut || exit 1)
+                (sgn -a $BITS -c 1 -o $TMP_DIR/shellcode.bin -i $TMP_DIR/shellcode.bin.donut || exit 1)
             else
                 cp $TMP_DIR/shellcode.bin.donut $TMP_DIR/shellcode.bin
             fi &&
